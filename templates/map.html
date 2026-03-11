@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% block title %}Map View{% endblock %}
+{% block page_title %}Collection Map{% endblock %}
+{% block page_meta %}Live route visualization — Chennai{% endblock %}
+
+{% block extra_head %}
+<!-- Pass route data to JavaScript as a global variable -->
+<script>
+  const routesData = {{ routes_json|safe }};
+  function mapsReady() { if (typeof initFullMap === 'function') initFullMap(); }
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ maps_key }}&callback=mapsReady" async defer></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- Map Controls Bar -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+  <div>
+    <h3 style="font-family:var(--font-head);font-size:18px;font-weight:700;">
+      🌐 Waste Collection Routes — Chennai
+    </h3>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:2px;">
+      {{ routes_json|length }} routes loaded · Click a marker for details
+    </p>
+  </div>
+  <div class="btn-group">
+    <a href="{% url 'routes_list' %}" class="btn btn-secondary btn-sm">🗺️ Manage Routes</a>
+    <a href="{% url 'schedules_list' %}" class="btn btn-secondary btn-sm">📅 Schedules</a>
+  </div>
+</div>
+
+<!-- Google Map -->
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    <div id="map-container"></div>
+  </div>
+</div>
+
+<!-- Legend -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">🗺️ Route Legend</span>
+  </div>
+  <div class="card-body">
+    <div class="map-legend" id="map-legend">
+      {% if not routes_json or routes_json == '[]' %}
+        <p style="color:var(--text-muted);font-size:13px;">
+          No routes found. <a href="{% url 'routes_list' %}" style="color:var(--green)">Add routes →</a>
+        </p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Route Summary Table -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">📋 Route Summary</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Route ID</th>
+          <th>Area</th>
+          <th>No. of Stops</th>
+          <th>First Point</th>
+          <th>Last Point</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <script>
+          document.addEventListener('DOMContentLoaded', () => {
+            const tbody = document.getElementById('route-tbody');
+            if (!tbody || !routesData.length) return;
+            tbody.innerHTML = routesData.map(r => {
+              const pts = r.pickup_points || [];
+              const first = pts[0]    ? `${pts[0].lat.toFixed(4)}, ${pts[0].lng.toFixed(4)}` : '—';
+              const last  = pts.at(-1) ? `${pts.at(-1).lat.toFixed(4)}, ${pts.at(-1).lng.toFixed(4)}` : '—';
+              return `<tr>
+                <td><strong>${r.route_id}</strong></td>
+                <td>${r.area}</td>
+                <td><span class="badge badge-blue">${pts.length}</span></td>
+                <td><span class="point-tag">${first}</span></td>
+                <td><span class="point-tag">${last}</span></td>
+                <td><a href="/routes/edit/${r.route_id}/" class="btn btn-warning btn-sm">✏️ Edit</a></td>
+              </tr>`;
+            }).join('');
+          });
+        </script>
+        <tbody id="route-tbody">
+          <!-- Filled by JS above -->
+        </tbody>
+      </tbody>
+    </table>
+    {% if not routes_json or routes_json == '[]' %}
+    <div style="text-align:center;padding:30px;color:var(--text-muted);">
+      No routes to display. <a href="{% url 'routes_list' %}" style="color:var(--green)">Create a route first →</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

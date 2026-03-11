@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_meta %}Municipal Waste Collection Overview{% endblock %}
+
+{% block content %}
+
+<!-- Stat Cards -->
+<div class="stats-grid">
+  <div class="stat-card green">
+    <span class="stat-icon">🚛</span>
+    <div class="stat-value">{{ total_vehicles }}</div>
+    <div class="stat-label">Total Vehicles</div>
+  </div>
+  <div class="stat-card blue">
+    <span class="stat-icon">✅</span>
+    <div class="stat-value">{{ active_vehicles }}</div>
+    <div class="stat-label">Active Vehicles</div>
+  </div>
+  <div class="stat-card yellow">
+    <span class="stat-icon">🗺️</span>
+    <div class="stat-value">{{ total_routes }}</div>
+    <div class="stat-label">Routes</div>
+  </div>
+  <div class="stat-card green">
+    <span class="stat-icon">📅</span>
+    <div class="stat-value">{{ total_schedules }}</div>
+    <div class="stat-label">Total Schedules</div>
+  </div>
+  <div class="stat-card yellow">
+    <span class="stat-icon">⏳</span>
+    <div class="stat-value">{{ pending_schedules }}</div>
+    <div class="stat-label">Pending</div>
+  </div>
+  <div class="stat-card blue">
+    <span class="stat-icon">🏁</span>
+    <div class="stat-value">{{ completed_schedules }}</div>
+    <div class="stat-label">Completed</div>
+  </div>
+</div>
+
+<!-- Quick Actions + Recent Schedules -->
+<div class="two-col">
+
+  <!-- Quick Actions -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">⚡ Quick Actions</span>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column;gap:10px;">
+      <a href="{% url 'vehicles_list' %}" class="btn btn-secondary" style="justify-content:flex-start;">
+        🚛 &nbsp; Manage Vehicles
+      </a>
+      <a href="{% url 'routes_list' %}" class="btn btn-secondary" style="justify-content:flex-start;">
+        🗺️ &nbsp; Manage Routes
+      </a>
+      <a href="{% url 'schedules_list' %}" class="btn btn-secondary" style="justify-content:flex-start;">
+        📅 &nbsp; Manage Schedules
+      </a>
+      <a href="{% url 'map_view' %}" class="btn btn-primary" style="justify-content:flex-start;">
+        🌐 &nbsp; View Collection Map
+      </a>
+    </div>
+  </div>
+
+  <!-- Recent Schedules -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🕐 Recent Schedules</span>
+      <a href="{% url 'schedules_list' %}" class="btn btn-secondary btn-sm">View All</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Schedule ID</th>
+            <th>Vehicle</th>
+            <th>Route</th>
+            <th>Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in recent_schedules %}
+          <tr>
+            <td><strong>{{ s.schedule_id }}</strong></td>
+            <td>{{ s.vehicle_id }}</td>
+            <td>{{ s.route_id }}</td>
+            <td>{{ s.collection_date }}</td>
+            <td>
+              {% if s.status == 'Active' or s.status == 'Completed' %}
+                <span class="badge badge-green">{{ s.status }}</span>
+              {% elif s.status == 'Pending' or s.status == 'In Progress' %}
+                <span class="badge badge-yellow">{{ s.status }}</span>
+              {% else %}
+                <span class="badge badge-red">{{ s.status }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr class="empty-row"><td colspan="5">No schedules yet. <a href="{% url 'schedules_list' %}" style="color:var(--green)">Add one →</a></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

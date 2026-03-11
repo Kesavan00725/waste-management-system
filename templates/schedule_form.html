@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- ============================================================
+     SCHEDULE ADD / EDIT FORM
+     ============================================================ -->
+
+<div class="form-card">
+  <div class="form-title">
+    <span>📅</span> {{ action }} Schedule
+  </div>
+  
+  <form method="post" action="">
+    {% csrf_token %}
+    
+    <!-- Schedule ID -->
+    <div class="form-group">
+      <label for="{{ form.schedule_id.id_for_label }}">Schedule ID *</label>
+      {{ form.schedule_id }}
+      {% if form.schedule_id.errors %}
+        <ul class="error-list">
+          {% for error in form.schedule_id.errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+      <div class="help-text">Unique identifier, e.g. S501</div>
+    </div>
+    
+    <!-- Vehicle & Route (side by side) -->
+    <div class="form-row">
+      <div class="form-group">
+        <label for="{{ form.vehicle.id_for_label }}">Vehicle *</label>
+        {{ form.vehicle }}
+        {% if form.vehicle.errors %}
+          <ul class="error-list">
+            {% for error in form.vehicle.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+      
+      <div class="form-group">
+        <label for="{{ form.route.id_for_label }}">Route *</label>
+        {{ form.route }}
+        {% if form.route.errors %}
+          <ul class="error-list">
+            {% for error in form.route.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+    
+    <!-- Date & Status -->
+    <div class="form-row">
+      <div class="form-group">
+        <label for="{{ form.collection_date.id_for_label }}">Collection Date *</label>
+        {{ form.collection_date }}
+        {% if form.collection_date.errors %}
+          <ul class="error-list">
+            {% for error in form.collection_date.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+      
+      <div class="form-group">
+        <label for="{{ form.status.id_for_label }}">Status *</label>
+        {{ form.status }}
+        {% if form.status.errors %}
+          <ul class="error-list">
+            {% for error in form.status.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+    
+    <!-- Notes -->
+    <div class="form-group">
+      <label for="{{ form.notes.id_for_label }}">Notes</label>
+      {{ form.notes }}
+    </div>
+    
+    <!-- Form Actions -->
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">
+        {% if action == 'Add' %}✅ Create Schedule{% else %}💾 Save Changes{% endif %}
+      </button>
+      <a href="{% url 'schedule_list' %}" class="btn btn-ghost">✕ Cancel</a>
+    </div>
+    
+  </form>
+</div>
+{% endblock %}

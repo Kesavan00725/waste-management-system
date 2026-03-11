@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}Vehicles{% endblock %}
+{% block page_title %}Vehicle Management{% endblock %}
+{% block page_meta %}{{ vehicles|length }} vehicle(s) registered{% endblock %}
+
+{% block content %}
+
+{% if error %}
+<div class="alert alert-error">⚠️ {{ error }}</div>
+{% endif %}
+
+<div class="two-col">
+
+  <!-- Add Vehicle Form -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">➕ Add New Vehicle</span>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="{% url 'vehicles_list' %}">
+        {% csrf_token %}
+        <div class="form-group">
+          <label>Vehicle ID</label>
+          <input type="text" name="vehicle_id" placeholder="e.g. V101" required>
+        </div>
+        <div class="form-group">
+          <label>Driver Name</label>
+          <input type="text" name="driver_name" placeholder="e.g. Arun Kumar" required>
+        </div>
+        <div class="form-group">
+          <label>Capacity</label>
+          <input type="text" name="capacity" placeholder="e.g. 2 Tons" required>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select name="status">
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+            <option value="Under Maintenance">Under Maintenance</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">🚛 Add Vehicle</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Vehicles Table -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🚛 All Vehicles</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Vehicle ID</th>
+            <th>Driver</th>
+            <th>Capacity</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in vehicles %}
+          <tr>
+            <td><strong>{{ v.vehicle_id }}</strong></td>
+            <td>{{ v.driver_name }}</td>
+            <td>{{ v.capacity }}</td>
+            <td>
+              {% if v.status == 'Active' %}
+                <span class="badge badge-green">{{ v.status }}</span>
+              {% elif v.status == 'Inactive' %}
+                <span class="badge badge-gray">{{ v.status }}</span>
+              {% else %}
+                <span class="badge badge-yellow">{{ v.status }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="btn-group">
+                <a href="{% url 'vehicle_update' v.vehicle_id %}" class="btn btn-warning btn-sm">✏️ Edit</a>
+                <a href="{% url 'vehicle_delete' v.vehicle_id %}"
+                   class="btn btn-danger btn-sm"
+                   onclick="return confirmDelete('{{ v.vehicle_id }}')">🗑️ Delete</a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr class="empty-row">
+            <td colspan="5">No vehicles registered yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

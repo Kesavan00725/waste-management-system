@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}Edit Route{% endblock %}
+{% block page_title %}Edit Route{% endblock %}
+{% block page_meta %}{{ route.route_id }}{% endblock %}
+
+{% block extra_head %}
+<script>
+  function mapsReady() { if (typeof initMiniMap === 'function') initMiniMap(); }
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ maps_key }}&callback=mapsReady" async defer></script>
+{% endblock %}
+
+{% block content %}
+{% if error %}
+<div class="alert alert-error">⚠️ {{ error }}</div>
+{% endif %}
+
+<div style="max-width:600px;">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">✏️ Edit Route — {{ route.route_id }}</span>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        {% csrf_token %}
+        <!-- Pre-populate with existing points -->
+        <input type="hidden" name="pickup_points" id="pickup-points-json" value="{{ pickup_points_json }}">
+        <!-- Used by JS to load existing points onto mini map -->
+        <input type="hidden" id="existing-points" value="{{ pickup_points_json }}">
+
+        <div class="form-group">
+          <label>Route ID</label>
+          <input type="text" value="{{ route.route_id }}" disabled style="opacity:0.5;">
+        </div>
+        <div class="form-group">
+          <label>Area Name</label>
+          <input type="text" name="area" value="{{ route.area }}" required>
+        </div>
+        <div class="form-group">
+          <label>Pickup Points <span style="color:var(--text-muted);font-weight:400;">(click map to add/update)</span></label>
+          <div id="mini-map"></div>
+        </div>
+
+        <div class="pickup-list" id="pickup-list"></div>
+
+        <div class="btn-group" style="margin-top:14px;">
+          <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+          <a href="{% url 'routes_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+// After map + JS load, sync the existing points into the list UI
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => { if (typeof syncPickupList === 'function') syncPickupList(); }, 500);
+});
+</script>
+{% endblock %}

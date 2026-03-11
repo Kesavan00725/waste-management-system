@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- ============================================================
+     VEHICLE ADD / EDIT FORM
+     ============================================================ -->
+
+<div class="form-card">
+  <div class="form-title">
+    <span>🚛</span> {{ action }} Vehicle
+  </div>
+  
+  <form method="post" action="">
+    {% csrf_token %}
+    
+    <!-- Vehicle ID & Driver Name (side by side) -->
+    <div class="form-row">
+      <div class="form-group">
+        <label for="{{ form.vehicle_id.id_for_label }}">Vehicle ID *</label>
+        {{ form.vehicle_id }}
+        {% if form.vehicle_id.errors %}
+          <ul class="error-list">
+            {% for error in form.vehicle_id.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+        <div class="help-text">Unique identifier, e.g. V101</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="{{ form.driver_name.id_for_label }}">Driver Name *</label>
+        {{ form.driver_name }}
+        {% if form.driver_name.errors %}
+          <ul class="error-list">
+            {% for error in form.driver_name.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+    
+    <!-- Capacity & Status -->
+    <div class="form-row">
+      <div class="form-group">
+        <label for="{{ form.capacity.id_for_label }}">Capacity *</label>
+        {{ form.capacity }}
+        {% if form.capacity.errors %}
+          <ul class="error-list">
+            {% for error in form.capacity.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+        <div class="help-text">e.g. 2 Tons, 500 kg</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="{{ form.status.id_for_label }}">Status *</label>
+        {{ form.status }}
+        {% if form.status.errors %}
+          <ul class="error-list">
+            {% for error in form.status.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+    
+    <!-- Form Actions -->
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">
+        {% if action == 'Add' %}✅ Create Vehicle{% else %}💾 Save Changes{% endif %}
+      </button>
+      <a href="{% url 'vehicle_list' %}" class="btn btn-ghost">✕ Cancel</a>
+    </div>
+    
+  </form>
+</div>
+{% endblock %}

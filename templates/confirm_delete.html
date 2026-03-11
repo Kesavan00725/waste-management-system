@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- ============================================================
+     CONFIRM DELETE PAGE
+     Generic reusable delete confirmation template
+     ============================================================ -->
+
+<div style="display:flex; justify-content:center; align-items:center; min-height:50vh;">
+  <div class="confirm-card">
+    <div class="confirm-icon">⚠️</div>
+    <div class="confirm-title">Confirm Deletion</div>
+    <div class="confirm-body">
+      You are about to permanently delete:<br>
+      <strong>{{ object_name }}</strong><br><br>
+      This action <strong>cannot be undone</strong>. All associated records may also be affected.
+    </div>
+    
+    <div style="display:flex; gap:12px; justify-content:center;">
+      <!-- Confirm delete -->
+      <form method="post" action="">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">
+          🗑️ Yes, Delete
+        </button>
+      </form>
+      <!-- Cancel -->
+      <a href="{% url cancel_url %}" class="btn btn-ghost">
+        ✕ Cancel
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
