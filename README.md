@@ -1,6 +1,18 @@
-# ♻️ Waste Collection Scheduling Management System
+# ♻️ WasteTrack Smart City: Waste Collection Scheduling Management System
 
-A full-stack Django + MongoDB web application to help municipalities manage waste collection vehicles, routes, and schedules — with live Google Maps visualization.
+A full-stack Django + MongoDB web application to help municipalities manage waste collection vehicles, routes, schedules, and citizen interactions — featuring a modern dashboard, live Google Maps visualization, smart bin monitoring, and data analytics.
+
+---
+
+## ✨ Smart City Features
+
+1. **Dashboard Analytics**: Interactive Chart.js visualizations showing waste collected per area, daily pickup statistics, vehicle usage, and bin fill levels.
+2. **Live Vehicle Tracking**: Real-time simulated vehicle movement on the map with GPS coordinates updated on a polling interval.
+3. **Smart Waste Bin Monitoring**: Real-time tracking of waste bin fill levels (0–100%). Bins are color-coded (red, yellow, green) based on their status on the map and dashboard.
+4. **Citizen Complaint System**: Public portal for citizens to report overflowing bins, missed pickups, or illegal dumping. Supports image uploads, map-based location tagging, and an admin interface for resolution tracking.
+5. **Notification System**: Real-time alerts for system events, full bins, assigned complaints, and scheduled collections with an unread badge indicator.
+6. **Advanced Map Visualization**: A centralized Google Maps view combining vehicle live tracking, bin locations, route overlays, and a dynamic Heatmap layer showing high-waste generation areas.
+7. **Premium Municipal UI**: Fully responsive, clean, and professional light-themed interface built with Bootstrap 5.
 
 ---
 
@@ -11,34 +23,32 @@ waste_collection_project/
 ├── manage.py
 ├── requirements.txt
 ├── README.md
+├── seed_data.py                    ← Script to populate database with sample data
 │
 ├── waste_collection_project/       ← Django project package
-│   ├── __init__.py
-│   ├── settings.py                 ← MongoDB config, API keys
-│   ├── urls.py
-│   └── wsgi.py
+│   ├── settings.py                 ← MongoDB config, API keys, Media routes
+│   └── urls.py                     ← Root URLs and Media serving
 │
 ├── waste_management/               ← Main app
-│   ├── __init__.py
-│   ├── apps.py
-│   ├── models.py                   ← MongoEngine documents
-│   ├── views.py                    ← CRUD logic
-│   └── urls.py                     ← URL routes
+│   ├── models.py                   ← MongoEngine documents (Vehicles, Bins, Complaints, etc.)
+│   ├── views.py                    ← CRUD logic & API endpoints for async map/chart updates
+│   └── urls.py                     ← App URL setup
 │
-├── templates/                      ← Django HTML templates
-│   ├── base.html
-│   ├── dashboard.html
-│   ├── vehicles.html
-│   ├── vehicle_edit.html
-│   ├── routes.html
-│   ├── route_edit.html
-│   ├── schedules.html
-│   ├── schedule_edit.html
-│   └── map.html
+├── templates/                      ← Django HTML templates (Bootstrap 5)
+│   ├── base.html                   ← Main layout with sidebar and topbar
+│   ├── dashboard.html              ← Overview stats and recent activity
+│   ├── analytics.html              ← Full page Chart.js analytics
+│   ├── map.html                    ← Live tracking & heatmap
+│   ├── bins.html                   ← Smart Bin monitoring
+│   ├── complaints.html             ← Citizen complaint submission & listing
+│   ├── complaint_detail.html       ← Admin resolution page for complaints
+│   ├── notifications.html          ← Alert feed
+│   └── ... (vehicles, routes, schedules CRUD templates)
 │
+├── media/                          ← User uploaded files (Complaint images)
 └── static/
-    ├── css/style.css               ← Dark industrial theme
-    └── js/script.js                ← Map & UI logic
+    ├── css/style.css               ← Professional Municipal Dashboard Theme
+    └── js/script.js                ← Base UI interactive logic
 ```
 
 ---
@@ -65,7 +75,6 @@ sudo systemctl start mongodb
 
 ### 3. Clone / Copy the project
 ```bash
-# Copy the project folder to your desired location, then:
 cd waste_collection_project
 ```
 
@@ -93,16 +102,10 @@ with your actual key.
 > To get a free API key: https://developers.google.com/maps/documentation/javascript/get-api-key
 > Enable: **Maps JavaScript API** in your Google Cloud project.
 
-### 7. (Optional) Configure MongoDB credentials
-If your MongoDB requires authentication, edit `settings.py`:
-```python
-MONGODB_SETTINGS = {
-    'db': 'waste_collection_db',
-    'host': 'localhost',
-    'port': 27017,
-    'username': 'your_username',   # uncomment if needed
-    'password': 'your_password',
-}
+### 7. Seed the Database (Important)
+We provide a comprehensive data seeder to immediately populate the system with vehicles, routes, bins, complaints, notifications, and analytics data.
+```bash
+python seed_data.py
 ```
 
 ### 8. Run the development server
@@ -114,96 +117,26 @@ Open your browser: **http://127.0.0.1:8000**
 
 ---
 
-## 🚀 Pages & Features
+## 🗄️ MongoDB Collections (MongoEngine)
 
-| Page | URL | Description |
-|------|-----|-------------|
-| Dashboard | `/` | Summary stats, quick actions, recent schedules |
-| Vehicles | `/vehicles/` | Add / Edit / Delete vehicles |
-| Routes | `/routes/` | Add / Edit / Delete routes with mini map |
-| Schedules | `/schedules/` | Add / Edit / Delete collection schedules |
-| Map View | `/map/` | Full Google Maps with all routes & markers |
-| API | `/api/routes/` | JSON endpoint returning all routes |
+The app utilizes Django exclusively for routing, templating, and request handling. Database operations are handled purely via **MongoEngine** interacting directly with MongoDB. Django's built-in ORM is disabled (`DATABASES = {'default': {'ENGINE': 'django.db.backends.dummy'}}`).
 
----
-
-## 🗄️ MongoDB Collections
-
-The app automatically creates these collections in `waste_collection_db`:
-
-### `vehicles`
-```json
-{
-  "vehicle_id":  "V101",
-  "driver_name": "Arun",
-  "capacity":    "2 Tons",
-  "status":      "Active"
-}
-```
-
-### `routes`
-```json
-{
-  "route_id": "R201",
-  "area":     "Adyar",
-  "pickup_points": [
-    {"lat": 13.0067, "lng": 80.2572},
-    {"lat": 13.0080, "lng": 80.2590}
-  ]
-}
-```
-
-### `schedules`
-```json
-{
-  "schedule_id":     "S501",
-  "vehicle_id":      "V101",
-  "route_id":        "R201",
-  "collection_date": "2026-03-15",
-  "status":          "Pending"
-}
-```
+Key collections:
+- `vehicles`: Includes capacities, driver specs, waste_type, and current GPS coordinates.
+- `routes`: Includes list of embedded lat/lng pickup point documents.
+- `schedules`: Joins vehicles and routes with collection dates.
+- `waste_bins`: Includes lat/lng, threshold levels (0-100%), and waste types.
+- `complaints`: Stores citizen reports, image file paths, assigned coordinates, and admin notes.
+- `notifications`: Stores system alerts and statuses.
+- `waste_collections`: Historical ledger of collected waste (in tonnes) used for reporting analytics.
 
 ---
 
-## 🔑 How Django Connects to MongoDB
+## 🌐 API & Integration points
 
-This project uses **MongoEngine** (ODM) instead of Django's default ORM:
-
-1. `settings.py` holds `MONGODB_SETTINGS` with host/port/db name.
-2. `apps.py` (`WasteManagementConfig.ready()`) calls `mongoengine.connect()` when Django starts.
-3. Models in `models.py` extend `mongoengine.Document` instead of `django.db.models.Model`.
-4. CRUD operations use MongoEngine's queryset API (`Vehicle.objects.all()`, `.get()`, `.save()`, `.delete()`).
-5. Django's built-in DB backend is set to `dummy` since we don't use it.
-
----
-
-## 🌐 Google Maps Integration
-
-- **Route form** (`/routes/`): A clickable mini map lets you select pickup points by clicking. Points are serialized as JSON and stored in MongoDB.
-- **Map view** (`/map/`): All routes are fetched from MongoDB and passed to the template as JSON. JavaScript (`initFullMap()`) renders markers and polylines using the Google Maps JS API.
-- **Dark theme**: Custom map styles matching the app's dark theme.
-- **Info windows**: Click any marker to see route name, stop number, and coordinates.
-
----
-
-## 📦 Dependencies
-
-| Package | Purpose |
-|---------|---------|
-| Django 4.2 | Web framework |
-| mongoengine | MongoDB ODM for Python |
-| pymongo | MongoDB driver (required by mongoengine) |
-
----
-
-## ✅ Sample Data to Get Started
-
-After running the server, add:
-
-1. **Vehicles**: V101 (Arun, 2 Tons, Active), V102 (Priya, 3 Tons, Active)
-2. **Routes**: R201 (Adyar) — click map near Adyar to add stops
-3. **Schedules**: S501 (V101, R201, today, Pending)
-
-Then visit `/map/` to see your routes on the map!
-#
+The web frontend communicates dynamically with the Django backend via dedicated JSON API routes:
+- `POST /api/vehicles/simulate/`: Progresses vehicle movement along route paths for the live map simulation.
+- `GET /api/vehicles/locations/`: Fetches immediate vehicle coordinates for the map tracking polling.
+- `GET /api/bins/`: Returns current statuses of all sensor-equipped bins.
+- `GET /api/analytics/`: Compiles real-time aggregations from historical collections, bin data, and vehicle fleets for Chart.js.
+- `GET /api/notifications/`: Polls notification unread counts.
