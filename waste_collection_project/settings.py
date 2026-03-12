@@ -17,14 +17,17 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.staticfiles',
+    'django.contrib.messages',
     'waste_management',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
 ]
 
 ROOT_URLCONF = 'waste_collection_project.urls'
@@ -38,6 +41,7 @@ TEMPLATES = [
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
+                'django.contrib.messages.context_processors.messages',
             ],
         },
     },
@@ -72,3 +76,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Google Maps API Key
 GOOGLE_MAPS_API_KEY = 'AIzaSyDLboNMvYIpzqcpjIK9ybVd3x22SjiogPM'
+
+# Session Configuration (File-based, since we don't use Django ORM)
+SESSION_ENGINE = 'django.contrib.sessions.backends.file'
+SESSION_FILE_PATH = BASE_DIR / 'django_sessions'
+os.makedirs(SESSION_FILE_PATH, exist_ok=True)

@@ -10,13 +10,14 @@ Full CRUD for Vehicles, Routes, Schedules + Smart-City Features:
   - Heatmap Visualization
 """
 
+import csv
 import json
 import os
 import random
 import math
 from datetime import datetime, timedelta
 from django.shortcuts import render, redirect
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.conf import settings
 from django.views.decorators.http import require_http_methods, require_POST
 from django.views.decorators.csrf import csrf_exempt
@@ -24,8 +25,10 @@ from mongoengine.errors import NotUniqueError, ValidationError
 
 from .models import (
     Vehicle, Route, Schedule, PickupPoint,
-    WasteBin, Complaint, Notification, WasteCollection
+    WasteBin, Complaint, Notification, WasteCollection,
+    User
 )
+from .auth import require_login, require_admin, require_citizen
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -41,9 +44,77 @@ def _unread_notif_count():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# DASHBOARD
+# AUTHENTICATION
 # ══════════════════════════════════════════════════════════════════════════════
 
+def login_view(request):
+    if 'user_id' in request.session:
+        role = request.session.get('role')
+        return redirect('dashboard' if role == 'Admin' else 'citizen_dashboard')
+
+    error = None
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+        password = request.POST.get('password', '')
+
+        try:
+            user = User.objects.get(email=email)
+            if user.check_password(password):
+                request.session['user_id'] = str(user.id)
+                request.session['role'] = user.role
+                request.session['full_name'] = user.full_name
+                return redirect('dashboard' if user.role == 'Admin' else 'citizen_dashboard')
+            else:
+                error = "Invalid credentials."
+        except User.DoesNotExist:
+            error = "User not found."
+
+    return render(request, 'login.html', {'error': error})
+
+
+def register_view(request):
+    if 'user_id' in request.session:
+        return redirect('citizen_dashboard')
+
+    error = None
+    if request.method == 'POST':
+        full_name = request.POST.get('full_name', '').strip()
+        email = request.POST.get('email', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        password = request.POST.get('password', '')
+        confirm = request.POST.get('confirm_password', '')
+
+        if password != confirm:
+            error = "Passwords do not match."
+        else:
+            try:
+                user = User(full_name=full_name, email=email, phone=phone, role='Citizen')
+                user.set_password(password)
+                user.save()
+                
+                # Auto-login
+                request.session['user_id'] = str(user.id)
+                request.session['role'] = user.role
+                request.session['full_name'] = user.full_name
+                return redirect('citizen_dashboard')
+            except NotUniqueError:
+                error = "Email is already registered."
+            except Exception as e:
+                error = str(e)
+
+    return render(request, 'register.html', {'error': error})
+
+
+def logout_view(request):
+    request.session.flush()
+    return redirect('login')
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DASHBOARD (Admin Only)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@require_admin
 def dashboard(request):
     """Main dashboard showing summary statistics."""
     full_bins = WasteBin.objects.filter(fill_level__gte=80).count()
@@ -70,6 +141,7 @@ def dashboard(request):
 # VEHICLE CRUD
 # ══════════════════════════════════════════════════════════════════════════════
 
+@require_admin
 def vehicles_list(request):
     error = None
     if request.method == 'POST':
@@ -96,6 +168,7 @@ def vehicles_list(request):
     })
 
 
+@require_admin
 def vehicle_update(request, vehicle_id):
     try:
         vehicle = Vehicle.objects.get(vehicle_id=vehicle_id)
@@ -121,6 +194,7 @@ def vehicle_update(request, vehicle_id):
     })
 
 
+@require_admin
 def vehicle_delete(request, vehicle_id):
     try:
         Vehicle.objects.get(vehicle_id=vehicle_id).delete()
@@ -133,6 +207,7 @@ def vehicle_delete(request, vehicle_id):
 # ROUTE CRUD
 # ══════════════════════════════════════════════════════════════════════════════
 
+@require_admin
 def routes_list(request):
     error = None
     if request.method == 'POST':
@@ -165,6 +240,7 @@ def routes_list(request):
     })
 
 
+@require_admin
 def route_update(request, route_id):
     try:
         route = Route.objects.get(route_id=route_id)
@@ -195,6 +271,7 @@ def route_update(request, route_id):
     })
 
 
+@require_admin
 def route_delete(request, route_id):
     try:
         Route.objects.get(route_id=route_id).delete()
@@ -207,6 +284,7 @@ def route_delete(request, route_id):
 # SCHEDULE CRUD
 # ══════════════════════════════════════════════════════════════════════════════
 
+@require_admin
 def schedules_list(request):
     error = None
     if request.method == 'POST':
@@ -237,6 +315,7 @@ def schedules_list(request):
     })
 
 
+@require_admin
 def schedule_update(request, schedule_id):
     try:
         schedule = Schedule.objects.get(schedule_id=schedule_id)
@@ -267,6 +346,7 @@ def schedule_update(request, schedule_id):
     })
 
 
+@require_admin
 def schedule_delete(request, schedule_id):
     try:
         Schedule.objects.get(schedule_id=schedule_id).delete()
@@ -279,6 +359,7 @@ def schedule_delete(request, schedule_id):
 # MAP VIEW (Enhanced with live tracking, bins, heatmap)
 # ══════════════════════════════════════════════════════════════════════════════
 
+@require_admin
 def map_view(request):
     routes = Route.objects.all()
     routes_json = json.dumps([r.to_dict() for r in routes])
@@ -297,6 +378,7 @@ def map_view(request):
 # WASTE BIN MONITORING
 # ══════════════════════════════════════════════════════════════════════════════
 
+@require_admin
 def bins_list(request):
     """Waste bin monitoring page."""
     error = None
@@ -332,6 +414,7 @@ def bins_list(request):
     })
 
 
+@require_admin
 def bin_delete(request, bin_id):
     try:
         WasteBin.objects.get(bin_id=bin_id).delete()
@@ -341,11 +424,12 @@ def bin_delete(request, bin_id):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# COMPLAINT SYSTEM
+# COMPLAINT SYSTEM (Admin Side)
 # ══════════════════════════════════════════════════════════════════════════════
 
+@require_admin
 def complaints_list(request):
-    """Complaint list + new complaint submission."""
+    """Admin Complaint list + new complaint submission."""
     error = None
     if request.method == 'POST':
         try:
@@ -400,6 +484,7 @@ def complaints_list(request):
     })
 
 
+@require_admin
 def complaint_detail(request, complaint_id):
     """Admin detail/resolve view for a single complaint."""
     try:
@@ -437,9 +522,10 @@ def complaint_detail(request, complaint_id):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# NOTIFICATIONS
+# NOTIFICATIONS (Admin)
 # ══════════════════════════════════════════════════════════════════════════════
 
+@require_admin
 def notifications_view(request):
     """Notification listing page."""
     if request.method == 'POST' and request.POST.get('action') == 'mark_all_read':
@@ -454,13 +540,115 @@ def notifications_view(request):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# ANALYTICS
+# ANALYTICS (Admin)
 # ══════════════════════════════════════════════════════════════════════════════
 
+@require_admin
 def analytics_view(request):
     """Analytics dashboard page."""
     return render(request, 'analytics.html', {
         'unread_notifs': _unread_notif_count(),
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CITIZEN MANAGEMENT (Admin Side)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@require_admin
+def citizens_list(request):
+    """View to list all registered Citizens."""
+    citizens = User.objects.filter(role='Citizen').order_by('-created_at')
+    return render(request, 'citizens.html', {
+        'citizens': citizens,
+        'unread_notifs': _unread_notif_count(),
+    })
+
+@require_admin
+def export_citizens_csv(request):
+    """Export Citizen data to a CSV/Excel file."""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="citizens_data.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['Full Name', 'Email', 'Phone', 'Role', 'Joined Date'])
+
+    citizens = User.objects.filter(role='Citizen').order_by('-created_at')
+    for citizen in citizens:
+        joined_date = citizen.created_at.strftime("%Y-%m-%d %H:%M:%S") if citizen.created_at else "N/A"
+        writer.writerow([citizen.full_name, citizen.email, citizen.phone, citizen.role, joined_date])
+
+    return response
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CITIZEN PANEL
+# ══════════════════════════════════════════════════════════════════════════════
+
+@require_citizen
+def citizen_dashboard(request):
+    """Citizen landing page summary."""
+    user_id = request.session.get('user_id')
+    my_complaints = Complaint.objects.filter(user_id=user_id).order_by('-created_at')[:5]
+    open_count = Complaint.objects.filter(user_id=user_id, status__in=['Open', 'Under Review']).count()
+
+    return render(request, 'citizen_dashboard.html', {
+        'my_complaints': my_complaints,
+        'open_count': open_count,
+        'full_name': request.session.get('full_name'),
+    })
+
+
+@require_citizen
+def citizen_complaints(request):
+    """Citizen complaints list & submission."""
+    user_id = request.session.get('user_id')
+    error = None
+
+    if request.method == 'POST':
+        try:
+            image_path = ''
+            if 'image' in request.FILES:
+                img = request.FILES['image']
+                media_dir = os.path.join(settings.MEDIA_ROOT, 'complaints')
+                os.makedirs(media_dir, exist_ok=True)
+                filename = f"complaint_{datetime.now().strftime('%Y%m%d%H%M%S')}_{img.name}"
+                filepath = os.path.join(media_dir, filename)
+                with open(filepath, 'wb+') as f:
+                    for chunk in img.chunks():
+                        f.write(chunk)
+                image_path = f"complaints/{filename}"
+
+            count = Complaint.objects.count()
+            complaint_id = f"C{str(count + 1).zfill(3)}"
+
+            complaint = Complaint(
+                complaint_id=complaint_id,
+                category=request.POST.get('category', 'Other'),
+                description=request.POST.get('description', '').strip(),
+                image_path=image_path,
+                lat=float(request.POST.get('lat', 13.0827)),
+                lng=float(request.POST.get('lng', 80.2707)),
+                address=request.POST.get('address', '').strip(),
+                reporter_name=request.session.get('full_name'),
+                user_id=user_id,
+            )
+            complaint.save()
+
+            Notification(
+                title='New Complaint Received',
+                message=f"Complaint #{complaint_id}: {complaint.category} reported by Citizen.",
+                notif_type='warning',
+            ).save()
+            return redirect('citizen_complaints')
+        except (ValidationError, ValueError) as e:
+            error = str(e)
+
+    my_complaints = Complaint.objects.filter(user_id=user_id)
+    return render(request, 'citizen_complaints.html', {
+        'complaints': my_complaints,
+        'categories': Complaint.CATEGORIES,
+        'error': error,
+        'maps_key': settings.GOOGLE_MAPS_API_KEY,
     })
 
 

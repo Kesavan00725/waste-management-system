@@ -13,6 +13,43 @@ Collections:
 
 import mongoengine as me
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
+
+
+# ─── User Document ────────────────────────────────────────────────────────────
+class User(me.Document):
+    """
+    Represents an authenticated user (Admin or Citizen)
+    MongoDB collection: users
+    """
+    meta = {'collection': 'users', 'ordering': ['-created_at']}
+
+    email         = me.StringField(required=True, unique=True, max_length=150)
+    password_hash = me.StringField(required=True)
+    full_name     = me.StringField(required=True, max_length=150)
+    role          = me.StringField(choices=['Admin', 'Citizen'], default='Citizen')
+    phone         = me.StringField(max_length=20)
+    created_at    = me.DateTimeField(default=datetime.utcnow)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def to_dict(self):
+        return {
+            'id': str(self.id),
+            'email': self.email,
+            'full_name': self.full_name,
+            'role': self.role,
+            'phone': self.phone,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else ''
+        }
+
+    def __str__(self):
+        return f"{self.full_name} ({self.role})"
+
 
 
 # ─── PickupPoint Embedded Document ─────────────────────────────────────────────
@@ -199,6 +236,7 @@ class Complaint(me.Document):
     lng          = me.FloatField(default=80.2707)
     address      = me.StringField(default='', max_length=200)
     reporter_name = me.StringField(default='Anonymous', max_length=100)
+    user_id      = me.StringField(default='', max_length=50) # To link a citizen to their complaint
     status       = me.StringField(choices=STATUSES, default='Open')
     admin_note   = me.StringField(default='', max_length=500)
     created_at   = me.DateTimeField(default=datetime.utcnow)
@@ -215,6 +253,7 @@ class Complaint(me.Document):
             'lng':           self.lng,
             'address':       self.address,
             'reporter_name': self.reporter_name,
+            'user_id':       self.user_id,
             'status':        self.status,
             'admin_note':    self.admin_note,
             'created_at':    self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else '',

@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Login{% endblock %}
+{% block page_title %}Login{% endblock %}
+
+{% block content %}
+<div class="d-flex w-100" style="min-height: 100vh; overflow: hidden; background: #f8fafc;">
+  
+  <!-- Left Side: Hero / Brand Image -->
+  <div class="col-md-6 d-none d-md-flex flex-column justify-content-center align-items-center position-relative" 
+       style="background-image: url(&quot;{% static 'images/login_hero.png' %}&quot;); background-size: cover; background-position: center; color: white; padding: 3rem;">
+    <!-- Dark Gradient Overlay for readability -->
+    <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: linear-gradient(135deg, rgba(4, 120, 87, 0.85) 0%, rgba(6, 78, 59, 0.95) 100%);"></div>
+    
+    <!-- Abstract Background Pattern (Optional texture over the color) -->
+    <div style="position: absolute; top:0; left:0; width:100%; height:100%; opacity: 0.1; background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 32px 32px; z-index: 0;"></div>
+    
+    <div class="text-center position-relative z-1" style="max-width: 400px; animation: fadeInUp 0.8s ease-out;">
+      <div class="logo-icon mx-auto mb-4 bg-white text-primary" style="width: 80px; height: 80px; font-size: 2.5rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center;">
+        <i class="bi bi-recycle"></i>
+      </div>
+      <h1 class="display-5 fw-bold mb-3" style="letter-spacing: -1px;">WasteTrack</h1>
+      <p class="fs-5 text-white-50 lh-lg">Empowering citizens and municipalities with a smart, efficient, and transparent waste management platform.</p>
+    </div>
+  </div>
+
+  <!-- Right Side: Login Form -->
+  <div class="col-12 col-md-6 d-flex align-items-center justify-content-center" style="background: white;">
+    <div class="w-100" style="max-width: 420px; padding: 2rem;">
+      <div class="d-md-none text-center mb-4">
+        <div class="logo-icon mx-auto mb-3 text-white" style="width: 60px; height: 60px; font-size: 1.8rem; background: var(--primary); border-radius: 16px; display: flex; align-items: center; justify-content: center;">
+          <i class="bi bi-recycle"></i>
+        </div>
+      </div>
+      
+      <div class="mb-5 text-center text-md-start" style="animation: fadeIn 1s ease-out;">
+        <h2 class="fw-bold text-dark mb-2" style="letter-spacing: -0.5px;">Welcome Back</h2>
+        <p class="text-muted">Sign in to your WasteTrack account</p>
+      </div>
+
+      {% if error %}
+      <div class="alert alert-danger py-2 small mb-4 d-flex align-items-center border-0 shadow-sm" style="animation: shake 0.5s ease-in-out;">
+        <i class="bi bi-exclamation-octagon-fill fs-5 me-2"></i> {{ error }}
+      </div>
+      {% endif %}
+
+      <form method="post" action="{% url 'login' %}" style="animation: slideUp 0.6s ease-out;">
+        {% csrf_token %}
+        <div class="mb-4">
+          <label class="form-label text-muted small fw-bold text-uppercase tracking-wider">Email Address</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-envelope"></i></span>
+            <input type="email" name="email" class="form-control form-control-lg bg-light border-start-0 ps-0" placeholder="name@example.com" required style="box-shadow: none;">
+          </div>
+        </div>
+        <div class="mb-4">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label class="form-label text-muted small fw-bold text-uppercase tracking-wider mb-0">Password</label>
+            <a href="#" class="small text-decoration-none text-primary fw-medium">Forgot password?</a>
+          </div>
+          <div class="input-group">
+            <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-lock"></i></span>
+            <input type="password" name="password" class="form-control form-control-lg bg-light border-start-0 ps-0" placeholder="••••••••" required style="box-shadow: none;">
+          </div>
+        </div>
+        
+        <div class="form-check mb-4">
+          <input class="form-check-input" type="checkbox" id="rememberMe">
+          <label class="form-check-label text-muted small" for="rememberMe">
+            Remember me for 30 days
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 py-3 mb-4 fw-bold shadow-sm d-flex justify-content-center align-items-center gap-2 transition-all">
+          Sign In <i class="bi bi-arrow-right"></i>
+        </button>
+        
+        <div class="text-center text-md-start">
+          <p class="text-muted small mb-0">Are you a new citizen? <a href="{% url 'register' %}" class="fw-bold text-primary text-decoration-none ms-1 border-bottom border-primary pb-1">Create an account</a></p>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+  html, body { 
+    height: 100%; 
+    margin: 0; 
+    background: #ffffff; /* Override base.html background if needed */
+  }
+  .sidebar, .top-bar, .top-bar-actions, #sidebarToggle { display: none !important; }
+  .page-body { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
+  .main-content { margin-left: 0 !important; width: 100% !important; padding: 0 !important; }
+  
+  /* Animations */
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes shake { 0%, 100% {transform: translateX(0);} 10%, 30%, 50%, 70%, 90% {transform: translateX(-5px);} 20%, 40%, 60%, 80% {transform: translateX(5px);} }
+  
+  .tracking-wider { letter-spacing: 0.05em; }
+  .input-group-text, .form-control { border-color: #e2e8f0; transition: border-color 0.2s, box-shadow 0.2s; }
+  .form-control:focus { background-color: #fff !important; }
+  .input-group:focus-within .input-group-text, .input-group:focus-within .form-control {
+    border-color: var(--primary) !important;
+    background-color: #fff !important;
+  }
+</style>
+{% endblock %}

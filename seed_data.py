@@ -21,7 +21,7 @@ me.connect(**MONGODB_SETTINGS)
 
 from waste_management.models import (
     Vehicle, Route, Schedule, PickupPoint,
-    WasteBin, Complaint, Notification, WasteCollection
+    WasteBin, Complaint, Notification, WasteCollection, User
 )
 from datetime import datetime, timedelta
 
@@ -35,6 +35,45 @@ def clear_all():
     Complaint.objects.all().delete()
     Notification.objects.all().delete()
     WasteCollection.objects.all().delete()
+    User.objects.all().delete()
+
+def seed_users():
+    print("👤  Seeding users...")
+    users_data = [
+        ('Admin', 'Admin User', 'admin@wastetrack.com', 'admin123', '9876543210'),
+        ('Citizen', 'John Doe', 'citizen@example.com', 'citizen123', '1234567890'),
+        ('Citizen', 'Priya Rajan', 'priya@example.com', 'citizen123', '9876123450'),
+        ('Citizen', 'Rahul Sharma', 'rahul.s@example.com', 'citizen123', '9988776655'),
+        ('Citizen', 'Kavitha Iyer', 'kavitha.i@example.com', 'citizen123', '9123456780'),
+        ('Citizen', 'Vijay Kumar', 'vijay.k@example.com', 'citizen123', '9845123670'),
+        ('Citizen', 'Anita Desai', 'anita.d@example.com', 'citizen123', '8765432109'),
+        ('Citizen', 'Suresh Babu', 'suresh.b@example.com', 'citizen123', '9012345678'),
+        ('Citizen', 'Deepa Nair', 'deepa.n@example.com', 'citizen123', '8901234567'),
+        ('Citizen', 'Arjun Reddy', 'arjun.r@example.com', 'citizen123', '7890123456'),
+        ('Citizen', 'Lakshmi P', 'lakshmi.p@example.com', 'citizen123', '8123456789'),
+        ('Citizen', 'Karthik S', 'karthik.s@example.com', 'citizen123', '9234567890'),
+        ('Citizen', 'Meenakshi N', 'meena.n@example.com', 'citizen123', '8345678901'),
+        ('Citizen', 'Ramakrishnan', 'ram.k@example.com', 'citizen123', '9456789012'),
+        ('Citizen', 'Divya R', 'divya.r@example.com', 'citizen123', '8567890123'),
+        ('Citizen', 'Sanjay M', 'sanjay.m@example.com', 'citizen123', '9678901234'),
+        ('Citizen', 'Pooja V', 'pooja.v@example.com', 'citizen123', '8789012345'),
+        ('Citizen', 'Murali K', 'murali.k@example.com', 'citizen123', '9890123456'),
+        ('Citizen', 'Shweta B', 'shweta.b@example.com', 'citizen123', '8990123456'),
+        ('Citizen', 'Varun T', 'varun.t@example.com', 'citizen123', '9090123456'),
+        ('Citizen', 'Nithya G', 'nithya.g@example.com', 'citizen123', '8190123456'),
+        ('Citizen', 'Ashwin D', 'ashwin.d@example.com', 'citizen123', '9290123456'),
+    ]
+    created_users = {}
+    for role, name, email, pwd, phone in users_data:
+        try:
+            u = User(role=role, full_name=name, email=email, phone=phone)
+            u.set_password(pwd)
+            u.save()
+            created_users[email] = str(u.id)
+            print(f"   ✅ {role}: {email} (pw: {pwd})")
+        except Exception as e:
+            print(f"   ⚠️  {email}: {e}")
+    return created_users
 
 
 def seed_vehicles():
@@ -143,20 +182,26 @@ def seed_bins():
             print(f"   ⚠️  {bin_id}: {e}")
 
 
-def seed_complaints():
+def seed_complaints(users_dict):
     print("📢  Seeding complaints...")
+    
+    # Get IDs of our seeded citizens
+    john_id = users_dict.get('citizen@example.com', '')
+    priya_id = users_dict.get('priya@example.com', '')
+
     complaints_data = [
-        ('C001', 'Overflowing Bin',  'Bin at Adyar beach road is overflowing since 2 days.',           13.0067, 80.2572, 'Adyar Beach Road', 'Ramesh Kumar',   'Open'),
-        ('C002', 'Missed Pickup',    'Our street was skipped during yesterday\'s collection.',          13.0418, 80.2341, 'Mahalingapuram',   'Priya S',        'Under Review'),
-        ('C003', 'Illegal Dumping',  'Large pile of construction debris dumped near the park.',         12.9815, 80.2180, 'Velachery Main Rd','Kavi Arasu',     'Open'),
-        ('C004', 'Overflowing Bin',  'Bin near T.Nagar bus stand is full and smelling bad.',           13.0375, 80.2299, 'T Nagar Bus Stand','Meenakshi R',    'Resolved'),
-        ('C005', 'Other',            'Waste water from the bin is flowing into the road.',              13.0850, 80.2101, 'Anna Nagar 5th St','Suresh Pillai',  'Closed'),
+        ('C001', 'Overflowing Bin',  'Bin at Adyar beach road is overflowing since 2 days.',           13.0067, 80.2572, 'Adyar Beach Road', 'John Doe',   john_id, 'Open'),
+        ('C002', 'Missed Pickup',    'Our street was skipped during yesterday\'s collection.',          13.0418, 80.2341, 'Mahalingapuram',   'Priya S',    priya_id, 'Under Review'),
+        ('C003', 'Illegal Dumping',  'Large pile of construction debris dumped near the park.',         12.9815, 80.2180, 'Velachery Main Rd','Kavi Arasu', '',       'Open'),
+        ('C004', 'Overflowing Bin',  'Bin near T.Nagar bus stand is full and smelling bad.',           13.0375, 80.2299, 'T Nagar Bus Stand','John Doe',   john_id,  'Resolved'),
+        ('C005', 'Other',            'Waste water from the bin is flowing into the road.',              13.0850, 80.2101, 'Anna Nagar 5th St','Priya S',    priya_id, 'Closed'),
     ]
-    for cid, cat, desc, lat, lng, addr, reporter, status in complaints_data:
+    for cid, cat, desc, lat, lng, addr, reporter, user_id, status in complaints_data:
         try:
             c = Complaint(
                 complaint_id=cid, category=cat, description=desc,
-                lat=lat, lng=lng, address=addr, reporter_name=reporter, status=status,
+                lat=lat, lng=lng, address=addr, reporter_name=reporter, 
+                user_id=user_id, status=status,
                 created_at=datetime.utcnow() - timedelta(days=len(cid)),
             )
             if status in ('Resolved', 'Closed'):
@@ -231,16 +276,18 @@ if __name__ == '__main__':
     print("════════════════════════════════════════════════════\n")
 
     clear_all()
+    users_dict = seed_users()
     seed_vehicles()
     seed_routes()
     seed_schedules()
     seed_bins()
-    seed_complaints()
+    seed_complaints(users_dict)
     seed_notifications()
     seed_waste_collections()
 
     print("\n════════════════════════════════════════════════════")
     print("  ✅  All data seeded successfully!")
+    print(f"  👤  Users:       {User.objects.count()}")
     print(f"  🚛  Vehicles:    {Vehicle.objects.count()}")
     print(f"  🗺️  Routes:      {Route.objects.count()}")
     print(f"  📅  Schedules:   {Schedule.objects.count()}")
