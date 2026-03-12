@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Notifications{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+{% block page_meta %}System alerts and smart-city notifications{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h5 class="mb-0">All Alerts</h5>
+    <small class="text-muted">Showing last 50 notifications</small>
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="mark_all_read">
+    <button type="submit" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-check2-all me-1"></i> Mark All Read
+    </button>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    {% for n in notifications %}
+    <div class="notif-item d-flex align-items-start gap-3 p-3 {% if not n.is_read %}notif-unread{% endif %}">
+      <div class="notif-item-icon
+        {% if n.notif_type == 'error' %}notif-icon-error
+        {% elif n.notif_type == 'warning' %}notif-icon-warning
+        {% elif n.notif_type == 'success' %}notif-icon-success
+        {% else %}notif-icon-info{% endif %}">
+        {% if n.notif_type == 'error' %}<i class="bi bi-x-circle-fill"></i>
+        {% elif n.notif_type == 'warning' %}<i class="bi bi-exclamation-triangle-fill"></i>
+        {% elif n.notif_type == 'success' %}<i class="bi bi-check-circle-fill"></i>
+        {% else %}<i class="bi bi-info-circle-fill"></i>{% endif %}
+      </div>
+      <div class="flex-grow-1">
+        <div class="d-flex justify-content-between align-items-start">
+          <strong class="text-dark">{{ n.title }}</strong>
+          <small class="text-muted ms-2 text-nowrap">{{ n.created_at|date:"M d · H:i" }}</small>
+        </div>
+        <div class="text-muted small mt-1">{{ n.message }}</div>
+      </div>
+      {% if not n.is_read %}
+      <div class="notif-unread-dot flex-shrink-0"></div>
+      {% endif %}
+    </div>
+    {% empty %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-bell-slash fs-1 d-block mb-3"></i>
+      <h5>All Caught Up!</h5>
+      <p>No notifications at the moment.</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}

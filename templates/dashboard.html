@@ -1,109 +1,274 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
-{% block page_meta %}Municipal Waste Collection Overview{% endblock %}
+{% block page_meta %}Municipal Waste Collection Overview · Chennai{% endblock %}
 
 {% block content %}
 
-<!-- Stat Cards -->
-<div class="stats-grid">
-  <div class="stat-card green">
-    <span class="stat-icon">🚛</span>
+<!-- ── Stat Cards ──────────────────────────────────────────────────────────── -->
+<div class="stats-grid mb-4">
+  <div class="stat-card stat-green">
+    <div class="stat-icon"><i class="bi bi-truck-front-fill"></i></div>
     <div class="stat-value">{{ total_vehicles }}</div>
     <div class="stat-label">Total Vehicles</div>
+    <div class="stat-sub text-success"><i class="bi bi-circle-fill me-1" style="font-size:8px"></i>{{ active_vehicles }} Active</div>
   </div>
-  <div class="stat-card blue">
-    <span class="stat-icon">✅</span>
-    <div class="stat-value">{{ active_vehicles }}</div>
-    <div class="stat-label">Active Vehicles</div>
-  </div>
-  <div class="stat-card yellow">
-    <span class="stat-icon">🗺️</span>
+  <div class="stat-card stat-blue">
+    <div class="stat-icon"><i class="bi bi-map-fill"></i></div>
     <div class="stat-value">{{ total_routes }}</div>
-    <div class="stat-label">Routes</div>
+    <div class="stat-label">Active Routes</div>
+    <div class="stat-sub">Coverage areas</div>
   </div>
-  <div class="stat-card green">
-    <span class="stat-icon">📅</span>
+  <div class="stat-card stat-yellow">
+    <div class="stat-icon"><i class="bi bi-calendar3-week-fill"></i></div>
     <div class="stat-value">{{ total_schedules }}</div>
     <div class="stat-label">Total Schedules</div>
+    <div class="stat-sub text-warning"><i class="bi bi-hourglass-split me-1"></i>{{ pending_schedules }} Pending</div>
   </div>
-  <div class="stat-card yellow">
-    <span class="stat-icon">⏳</span>
-    <div class="stat-value">{{ pending_schedules }}</div>
-    <div class="stat-label">Pending</div>
-  </div>
-  <div class="stat-card blue">
-    <span class="stat-icon">🏁</span>
+  <div class="stat-card stat-purple">
+    <div class="stat-icon"><i class="bi bi-check2-circle"></i></div>
     <div class="stat-value">{{ completed_schedules }}</div>
     <div class="stat-label">Completed</div>
+    <div class="stat-sub text-success">Pickups done</div>
+  </div>
+  <div class="stat-card stat-red">
+    <div class="stat-icon"><i class="bi bi-trash3-fill"></i></div>
+    <div class="stat-value">{{ total_bins }}</div>
+    <div class="stat-label">Smart Bins</div>
+    <div class="stat-sub text-danger"><i class="bi bi-exclamation-circle me-1"></i>{{ full_bins }} Full</div>
+  </div>
+  <div class="stat-card stat-orange">
+    <div class="stat-icon"><i class="bi bi-megaphone-fill"></i></div>
+    <div class="stat-value">{{ open_complaints }}</div>
+    <div class="stat-label">Open Complaints</div>
+    <div class="stat-sub">Awaiting action</div>
   </div>
 </div>
 
-<!-- Quick Actions + Recent Schedules -->
-<div class="two-col">
+<!-- ── Charts Row ──────────────────────────────────────────────────────────── -->
+<div class="row g-4 mb-4">
+  <!-- Waste by Area -->
+  <div class="col-12 col-xl-8">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span class="card-title"><i class="bi bi-bar-chart-fill me-2 text-success"></i>Waste Collected per Area (Tonnes)</span>
+        <span class="badge bg-success-subtle text-success">This Month</span>
+      </div>
+      <div class="card-body">
+        <canvas id="wasteByAreaChart" height="80"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vehicle Status Doughnut -->
+  <div class="col-12 col-xl-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <span class="card-title"><i class="bi bi-pie-chart-fill me-2 text-primary"></i>Vehicle Status</span>
+      </div>
+      <div class="card-body d-flex align-items-center justify-content-center">
+        <canvas id="vehicleStatusChart" style="max-height:220px;"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Daily Pickups Line + Quick Actions ──────────────────────────────────── -->
+<div class="row g-4 mb-4">
+  <div class="col-12 col-xl-8">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span class="card-title"><i class="bi bi-graph-up-arrow me-2 text-info"></i>Daily Pickup Completions (Last 7 Days)</span>
+        <a href="{% url 'analytics_view' %}" class="btn btn-sm btn-outline-secondary">Full Analytics</a>
+      </div>
+      <div class="card-body">
+        <canvas id="dailyPickupsChart" height="80"></canvas>
+      </div>
+    </div>
+  </div>
 
   <!-- Quick Actions -->
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">⚡ Quick Actions</span>
-    </div>
-    <div class="card-body" style="display:flex;flex-direction:column;gap:10px;">
-      <a href="{% url 'vehicles_list' %}" class="btn btn-secondary" style="justify-content:flex-start;">
-        🚛 &nbsp; Manage Vehicles
-      </a>
-      <a href="{% url 'routes_list' %}" class="btn btn-secondary" style="justify-content:flex-start;">
-        🗺️ &nbsp; Manage Routes
-      </a>
-      <a href="{% url 'schedules_list' %}" class="btn btn-secondary" style="justify-content:flex-start;">
-        📅 &nbsp; Manage Schedules
-      </a>
-      <a href="{% url 'map_view' %}" class="btn btn-primary" style="justify-content:flex-start;">
-        🌐 &nbsp; View Collection Map
-      </a>
-    </div>
-  </div>
-
-  <!-- Recent Schedules -->
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">🕐 Recent Schedules</span>
-      <a href="{% url 'schedules_list' %}" class="btn btn-secondary btn-sm">View All</a>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Schedule ID</th>
-            <th>Vehicle</th>
-            <th>Route</th>
-            <th>Date</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for s in recent_schedules %}
-          <tr>
-            <td><strong>{{ s.schedule_id }}</strong></td>
-            <td>{{ s.vehicle_id }}</td>
-            <td>{{ s.route_id }}</td>
-            <td>{{ s.collection_date }}</td>
-            <td>
-              {% if s.status == 'Active' or s.status == 'Completed' %}
-                <span class="badge badge-green">{{ s.status }}</span>
-              {% elif s.status == 'Pending' or s.status == 'In Progress' %}
-                <span class="badge badge-yellow">{{ s.status }}</span>
-              {% else %}
-                <span class="badge badge-red">{{ s.status }}</span>
-              {% endif %}
-            </td>
-          </tr>
-          {% empty %}
-          <tr class="empty-row"><td colspan="5">No schedules yet. <a href="{% url 'schedules_list' %}" style="color:var(--green)">Add one →</a></td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <div class="col-12 col-xl-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <span class="card-title"><i class="bi bi-lightning-fill me-2 text-warning"></i>Quick Actions</span>
+      </div>
+      <div class="card-body d-flex flex-column gap-2">
+        <a href="{% url 'vehicles_list' %}" class="btn btn-light action-btn text-start">
+          <i class="bi bi-truck-front text-success me-2"></i> Manage Vehicles
+        </a>
+        <a href="{% url 'routes_list' %}" class="btn btn-light action-btn text-start">
+          <i class="bi bi-map text-primary me-2"></i> Manage Routes
+        </a>
+        <a href="{% url 'schedules_list' %}" class="btn btn-light action-btn text-start">
+          <i class="bi bi-calendar3 text-warning me-2"></i> Manage Schedules
+        </a>
+        <a href="{% url 'map_view' %}" class="btn btn-success action-btn text-start text-white">
+          <i class="bi bi-globe2 me-2"></i> Open Live Map
+        </a>
+        <a href="{% url 'bins_list' %}" class="btn btn-light action-btn text-start">
+          <i class="bi bi-trash3 text-danger me-2"></i> Monitor Bins
+        </a>
+        <a href="{% url 'complaints_list' %}" class="btn btn-light action-btn text-start">
+          <i class="bi bi-exclamation-triangle text-orange me-2"></i> View Complaints
+        </a>
+      </div>
     </div>
   </div>
-
 </div>
+
+<!-- ── Recent Schedules + Complaints ──────────────────────────────────────── -->
+<div class="row g-4">
+  <!-- Recent Schedules -->
+  <div class="col-12 col-xl-7">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span class="card-title"><i class="bi bi-clock-history me-2 text-primary"></i>Recent Schedules</span>
+        <a href="{% url 'schedules_list' %}" class="btn btn-sm btn-outline-secondary">View All</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Schedule ID</th><th>Vehicle</th><th>Route</th><th>Date</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in recent_schedules %}
+            <tr>
+              <td><strong>{{ s.schedule_id }}</strong></td>
+              <td><span class="text-muted"><i class="bi bi-truck me-1"></i></span>{{ s.vehicle_id }}</td>
+              <td>{{ s.route_id }}</td>
+              <td>{{ s.collection_date }}</td>
+              <td>
+                {% if s.status == 'Completed' %}<span class="badge bg-success">{{ s.status }}</span>
+                {% elif s.status == 'In Progress' %}<span class="badge bg-info text-dark">{{ s.status }}</span>
+                {% elif s.status == 'Pending' %}<span class="badge bg-warning text-dark">{{ s.status }}</span>
+                {% else %}<span class="badge bg-secondary">{{ s.status }}</span>{% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-4">No schedules yet. <a href="{% url 'schedules_list' %}">Add one →</a></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Complaints -->
+  <div class="col-12 col-xl-5">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span class="card-title"><i class="bi bi-exclamation-triangle me-2 text-danger"></i>Recent Complaints</span>
+        <a href="{% url 'complaints_list' %}" class="btn btn-sm btn-outline-secondary">View All</a>
+      </div>
+      <div class="card-body p-0">
+        {% for c in recent_complaints %}
+        <a href="{% url 'complaint_detail' c.complaint_id %}" class="complaint-item d-flex align-items-start gap-3 p-3 border-bottom text-decoration-none">
+          <div class="complaint-icon">
+            {% if c.category == 'Overflowing Bin' %}<i class="bi bi-trash3-fill text-danger"></i>
+            {% elif c.category == 'Missed Pickup' %}<i class="bi bi-truck text-warning"></i>
+            {% elif c.category == 'Illegal Dumping' %}<i class="bi bi-exclamation-octagon text-danger"></i>
+            {% else %}<i class="bi bi-chat-left-text text-secondary"></i>{% endif %}
+          </div>
+          <div class="flex-grow-1 overflow-hidden">
+            <div class="d-flex justify-content-between align-items-start">
+              <strong class="text-dark small">{{ c.category }}</strong>
+              {% if c.status == 'Open' %}<span class="badge bg-danger-subtle text-danger" style="font-size:10px;">{{ c.status }}</span>
+              {% elif c.status == 'Resolved' %}<span class="badge bg-success-subtle text-success" style="font-size:10px;">{{ c.status }}</span>
+              {% else %}<span class="badge bg-warning-subtle text-warning" style="font-size:10px;">{{ c.status }}</span>{% endif %}
+            </div>
+            <div class="text-muted small text-truncate">{{ c.description }}</div>
+            <div class="text-muted" style="font-size:11px;"><i class="bi bi-clock me-1"></i>{{ c.created_at|date:"M d, Y" }}</div>
+          </div>
+        </a>
+        {% empty %}
+        <div class="text-center text-muted py-4"><i class="bi bi-check-circle text-success fs-4 d-block mb-2"></i>No complaints reported</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+fetch('/api/analytics/').then(r => r.json()).then(data => {
+  const chartDefaults = {
+    font: { family: "'Inter', sans-serif" },
+    color: '#6b7280',
+  };
+  Chart.defaults.font.family = "'Inter', sans-serif";
+
+  // Waste by Area — Bar
+  new Chart(document.getElementById('wasteByAreaChart'), {
+    type: 'bar',
+    data: {
+      labels: data.waste_by_area.labels,
+      datasets: [{
+        label: 'Tonnes Collected',
+        data: data.waste_by_area.data,
+        backgroundColor: [
+          'rgba(16,185,129,0.8)','rgba(59,130,246,0.8)','rgba(245,158,11,0.8)',
+          'rgba(239,68,68,0.8)','rgba(139,92,246,0.8)','rgba(236,72,153,0.8)',
+          'rgba(14,165,233,0.8)','rgba(34,197,94,0.8)',
+        ],
+        borderRadius: 8,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true, plugins: { legend: { display: false } },
+      scales: {
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#6b7280' } },
+        x: { grid: { display: false }, ticks: { color: '#6b7280' } }
+      }
+    }
+  });
+
+  // Vehicle Status — Doughnut
+  new Chart(document.getElementById('vehicleStatusChart'), {
+    type: 'doughnut',
+    data: {
+      labels: data.vehicle_status.labels,
+      datasets: [{
+        data: data.vehicle_status.data,
+        backgroundColor: ['#10b981','#6366f1','#f59e0b'],
+        borderWidth: 0,
+        hoverOffset: 8,
+      }]
+    },
+    options: {
+      responsive: true, cutout: '70%',
+      plugins: { legend: { position: 'bottom', labels: { color: '#374151', padding: 16 } } }
+    }
+  });
+
+  // Daily Pickups — Line
+  new Chart(document.getElementById('dailyPickupsChart'), {
+    type: 'line',
+    data: {
+      labels: data.daily_pickups.labels,
+      datasets: [{
+        label: 'Completed Pickups',
+        data: data.daily_pickups.data,
+        borderColor: '#6366f1',
+        backgroundColor: 'rgba(99,102,241,0.1)',
+        fill: true, tension: 0.4,
+        pointBackgroundColor: '#6366f1', pointRadius: 5,
+      }]
+    },
+    options: {
+      responsive: true, plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#6b7280', stepSize: 1 } },
+        x: { grid: { display: false }, ticks: { color: '#6b7280' } }
+      }
+    }
+  });
+}).catch(err => console.warn('Analytics API not available:', err));
+</script>
 {% endblock %}

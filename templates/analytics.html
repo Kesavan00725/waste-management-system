@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% block title %}Analytics{% endblock %}
+{% block page_title %}Analytics Dashboard{% endblock %}
+{% block page_meta %}Waste collection insights and performance metrics{% endblock %}
+
+{% block content %}
+
+<!-- Header KPI Row -->
+<div class="stats-grid mb-4" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+  <div class="stat-card stat-green">
+    <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
+    <div class="stat-value" id="kpi-total-tonnes">—</div>
+    <div class="stat-label">Total Tonnes Collected</div>
+  </div>
+  <div class="stat-card stat-blue">
+    <div class="stat-icon"><i class="bi bi-calendar-check"></i></div>
+    <div class="stat-value" id="kpi-weekly-pickups">—</div>
+    <div class="stat-label">Pickups This Week</div>
+  </div>
+  <div class="stat-card stat-red">
+    <div class="stat-icon"><i class="bi bi-trash3-fill"></i></div>
+    <div class="stat-value" id="kpi-full-bins">—</div>
+    <div class="stat-label">Full Bins</div>
+  </div>
+  <div class="stat-card stat-yellow">
+    <div class="stat-icon"><i class="bi bi-truck-front-fill"></i></div>
+    <div class="stat-value" id="kpi-active-vehicles">—</div>
+    <div class="stat-label">Active Vehicles</div>
+  </div>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="row g-4 mb-4">
+  <div class="col-12 col-xl-8">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="card-title"><i class="bi bi-bar-chart-fill me-2 text-success"></i>Waste Collected per Area (Tonnes)</span>
+        <span class="badge bg-success-subtle text-success">All Time</span>
+      </div>
+      <div class="card-body">
+        <canvas id="areaChart" height="90"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-xl-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <span class="card-title"><i class="bi bi-pie-chart-fill me-2 text-warning"></i>Waste Type Distribution</span>
+      </div>
+      <div class="card-body d-flex align-items-center justify-content-center">
+        <canvas id="wasteTypeChart" style="max-height:250px;"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="row g-4 mb-4">
+  <div class="col-12 col-xl-6">
+    <div class="card h-100">
+      <div class="card-header">
+        <span class="card-title"><i class="bi bi-graph-up me-2 text-primary"></i>Daily Pickup Completions (Last 7 Days)</span>
+      </div>
+      <div class="card-body">
+        <canvas id="dailyChart" height="100"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-xl-6">
+    <div class="card h-100">
+      <div class="card-header">
+        <span class="card-title"><i class="bi bi-truck me-2 text-secondary"></i>Vehicle Fleet Status</span>
+      </div>
+      <div class="card-body d-flex align-items-center justify-content-center">
+        <canvas id="vehicleChart" style="max-height:250px;"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bin Fill Status Chart -->
+<div class="row g-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="bi bi-reception-4 me-2 text-danger"></i>Smart Bin Fill Status</span>
+      </div>
+      <div class="card-body">
+        <div class="row g-4">
+          <div class="col-md-4 d-flex flex-column align-items-center justify-content-center">
+            <canvas id="binStatusChart" style="max-height:220px;"></canvas>
+          </div>
+          <div class="col-md-8 d-flex align-items-center">
+            <div class="row g-3 w-100" id="binStatsRow">
+              <div class="col-4">
+                <div class="text-center p-4 rounded" style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);">
+                  <div class="fw-bold text-danger fs-2" id="bin-full-cnt">—</div>
+                  <div class="text-muted small">Full (≥80%)</div>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="text-center p-4 rounded" style="background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);">
+                  <div class="fw-bold text-warning fs-2" id="bin-half-cnt">—</div>
+                  <div class="text-muted small">Half (50–79%)</div>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="text-center p-4 rounded" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2);">
+                  <div class="fw-bold text-success fs-2" id="bin-low-cnt">—</div>
+                  <div class="text-muted small">Low (&lt;50%)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.color = '#6b7280';
+
+fetch('/api/analytics/').then(r => r.json()).then(d => {
+  // KPI Cards
+  const totalTonnes = d.waste_by_area.data.reduce((a,b)=>a+b, 0);
+  const weeklyPickups = d.daily_pickups.data.reduce((a,b)=>a+b, 0);
+  document.getElementById('kpi-total-tonnes').textContent = totalTonnes.toFixed(1);
+  document.getElementById('kpi-weekly-pickups').textContent = weeklyPickups;
+  document.getElementById('kpi-full-bins').textContent = d.bin_fill_stats.full;
+  document.getElementById('kpi-active-vehicles').textContent = d.vehicle_status.data[0] || 0;
+
+  // Area Bar Chart
+  new Chart(document.getElementById('areaChart'), {
+    type: 'bar',
+    data: {
+      labels: d.waste_by_area.labels,
+      datasets: [{
+        label: 'Tonnes', data: d.waste_by_area.data, borderRadius: 8, borderSkipped: false,
+        backgroundColor: ['#10b981','#6366f1','#f59e0b','#ef4444','#8b5cf6','#ec4899','#0ea5e9','#22c55e'],
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } },
+      scales: { y: { grid: { color:'rgba(0,0,0,0.05)' } }, x: { grid: { display: false } } }
+    }
+  });
+
+  // Waste Type Pie
+  new Chart(document.getElementById('wasteTypeChart'), {
+    type: 'pie',
+    data: {
+      labels: d.waste_type_distribution.labels,
+      datasets: [{ data: d.waste_type_distribution.data, backgroundColor: ['#6b7280','#10b981','#3b82f6','#6366f1','#f59e0b'], borderWidth: 2, hoverOffset: 8 }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { padding: 16 } } } }
+  });
+
+  // Daily Pickups Line
+  new Chart(document.getElementById('dailyChart'), {
+    type: 'line',
+    data: {
+      labels: d.daily_pickups.labels,
+      datasets: [{
+        label: 'Completed', data: d.daily_pickups.data, borderColor: '#6366f1',
+        backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.4,
+        pointBackgroundColor: '#6366f1', pointRadius: 5,
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, grid: { color:'rgba(0,0,0,0.05)' }, ticks: { stepSize: 1 } }, x: { grid: { display: false } } }
+    }
+  });
+
+  // Vehicle Doughnut
+  new Chart(document.getElementById('vehicleChart'), {
+    type: 'doughnut',
+    data: {
+      labels: d.vehicle_status.labels,
+      datasets: [{ data: d.vehicle_status.data, backgroundColor: ['#10b981','#6b7280','#f59e0b'], borderWidth: 0, hoverOffset: 8 }]
+    },
+    options: { responsive: true, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { padding: 16 } } } }
+  });
+
+  // Bin Status Doughnut
+  const bs = d.bin_fill_stats;
+  document.getElementById('bin-full-cnt').textContent = bs.full;
+  document.getElementById('bin-half-cnt').textContent = bs.half;
+  document.getElementById('bin-low-cnt').textContent  = bs.low;
+  new Chart(document.getElementById('binStatusChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Full', 'Half', 'Low'],
+      datasets: [{ data: [bs.full, bs.half, bs.low], backgroundColor: ['#ef4444','#f59e0b','#10b981'], borderWidth: 0, hoverOffset: 8 }]
+    },
+    options: { responsive: true, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { padding: 12 } } } }
+  });
+
+}).catch(err => { console.error('Analytics load error:', err); });
+</script>
+{% endblock %}

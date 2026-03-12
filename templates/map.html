@@ -1,106 +1,341 @@
 {% extends 'base.html' %}
-{% block title %}Map View{% endblock %}
-{% block page_title %}Collection Map{% endblock %}
-{% block page_meta %}Live route visualization — Chennai{% endblock %}
+{% block title %}Live Map{% endblock %}
+{% block page_title %}Live Map{% endblock %}
+{% block page_meta %}Real-time vehicle tracking · Bin monitoring · Waste heatmap{% endblock %}
 
 {% block extra_head %}
-<!-- Pass route data to JavaScript as a global variable -->
-<script>
-  const routesData = {{ routes_json|safe }};
-  function mapsReady() { if (typeof initFullMap === 'function') initFullMap(); }
-</script>
-<script src="https://maps.googleapis.com/maps/api/js?key={{ maps_key }}&callback=mapsReady" async defer></script>
+<style>
+  #map-container { width: 100%; height: calc(100vh - 260px); min-height: 500px; border-radius: 14px; overflow: hidden; border: 1px solid #dee2e6; }
+  .map-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .map-toolbar .btn { font-size: 13px; }
+  .map-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: #374151; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .layer-toggle.active { box-shadow: 0 0 0 2px rgba(16,185,129,0.5); }
+  #trackerStatus { font-size: 12px; padding: 4px 10px; }
+</style>
 {% endblock %}
 
 {% block content %}
 
-<!-- Map Controls Bar -->
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-  <div>
-    <h3 style="font-family:var(--font-head);font-size:18px;font-weight:700;">
-      🌐 Waste Collection Routes — Chennai
-    </h3>
-    <p style="font-size:12px;color:var(--text-muted);margin-top:2px;">
-      {{ routes_json|length }} routes loaded · Click a marker for details
-    </p>
-  </div>
-  <div class="btn-group">
-    <a href="{% url 'routes_list' %}" class="btn btn-secondary btn-sm">🗺️ Manage Routes</a>
-    <a href="{% url 'schedules_list' %}" class="btn btn-secondary btn-sm">📅 Schedules</a>
+<!-- Toolbar -->
+<div class="card mb-3">
+  <div class="card-body py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div class="map-toolbar mb-0">
+      <button class="btn btn-sm btn-outline-success layer-toggle active" id="toggleRoutes" onclick="toggleLayer('routes')">
+        <i class="bi bi-signpost-2 me-1"></i>Routes
+      </button>
+      <button class="btn btn-sm btn-outline-primary layer-toggle active" id="toggleVehicles" onclick="toggleLayer('vehicles')">
+        <i class="bi bi-truck me-1"></i>Vehicles
+      </button>
+      <button class="btn btn-sm btn-outline-danger layer-toggle active" id="toggleBins" onclick="toggleLayer('bins')">
+        <i class="bi bi-trash3 me-1"></i>Bins
+      </button>
+      <button class="btn btn-sm btn-outline-warning layer-toggle" id="toggleHeatmap" onclick="toggleLayer('heatmap')">
+        <i class="bi bi-fire me-1"></i>Heatmap
+      </button>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-success-subtle text-success" id="trackerStatus">
+        <i class="bi bi-broadcast me-1"></i>Live Tracking ON
+      </span>
+      <button class="btn btn-sm btn-success" id="trackingToggleBtn" onclick="toggleTracking()">
+        <i class="bi bi-pause-fill me-1"></i>Pause
+      </button>
+    </div>
   </div>
 </div>
 
-<!-- Google Map -->
-<div class="card">
-  <div class="card-body" style="padding:0;">
-    <div id="map-container"></div>
-  </div>
-</div>
+<!-- Map -->
+<div id="map-container"></div>
 
 <!-- Legend -->
-<div class="card">
-  <div class="card-header">
-    <span class="card-title">🗺️ Route Legend</span>
-  </div>
-  <div class="card-body">
-    <div class="map-legend" id="map-legend">
-      {% if not routes_json or routes_json == '[]' %}
-        <p style="color:var(--text-muted);font-size:13px;">
-          No routes found. <a href="{% url 'routes_list' %}" style="color:var(--green)">Add routes →</a>
-        </p>
-      {% endif %}
-    </div>
-  </div>
+<div class="map-legend mt-3">
+  <div class="legend-item"><div class="legend-dot" style="background:#10b981;"></div>Active Vehicle</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ef4444;"></div>Full Bin (≥80%)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;"></div>Half Bin (50–79%)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#10b981; opacity:0.6;"></div>Low Bin (&lt;50%)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#6366f1;"></div>Route Pickup Point</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f97316; opacity:0.8;"></div>Waste Heatmap</div>
 </div>
 
-<!-- Route Summary Table -->
-<div class="card">
-  <div class="card-header">
-    <span class="card-title">📋 Route Summary</span>
-  </div>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Route ID</th>
-          <th>Area</th>
-          <th>No. of Stops</th>
-          <th>First Point</th>
-          <th>Last Point</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <script>
-          document.addEventListener('DOMContentLoaded', () => {
-            const tbody = document.getElementById('route-tbody');
-            if (!tbody || !routesData.length) return;
-            tbody.innerHTML = routesData.map(r => {
-              const pts = r.pickup_points || [];
-              const first = pts[0]    ? `${pts[0].lat.toFixed(4)}, ${pts[0].lng.toFixed(4)}` : '—';
-              const last  = pts.at(-1) ? `${pts.at(-1).lat.toFixed(4)}, ${pts.at(-1).lng.toFixed(4)}` : '—';
-              return `<tr>
-                <td><strong>${r.route_id}</strong></td>
-                <td>${r.area}</td>
-                <td><span class="badge badge-blue">${pts.length}</span></td>
-                <td><span class="point-tag">${first}</span></td>
-                <td><span class="point-tag">${last}</span></td>
-                <td><a href="/routes/edit/${r.route_id}/" class="btn btn-warning btn-sm">✏️ Edit</a></td>
-              </tr>`;
-            }).join('');
-          });
-        </script>
-        <tbody id="route-tbody">
-          <!-- Filled by JS above -->
-        </tbody>
-      </tbody>
-    </table>
-    {% if not routes_json or routes_json == '[]' %}
-    <div style="text-align:center;padding:30px;color:var(--text-muted);">
-      No routes to display. <a href="{% url 'routes_list' %}" style="color:var(--green)">Create a route first →</a>
-    </div>
-    {% endif %}
-  </div>
-</div>
+<!-- Vehicle Info Panel -->
+<div class="row g-3 mt-3" id="vehicleInfoPanel"></div>
 
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Data from Django
+  const ROUTES_DATA   = {{ routes_json|safe }};
+  const VEHICLES_DATA = {{ vehicles_json|safe }};
+  const BINS_DATA     = {{ bins_json|safe }};
+  const MAPS_KEY      = "{{ maps_key }}";
+
+  let map, heatmapLayer;
+  let routePolylines = [], routeMarkers = [];
+  let vehicleMarkers = {};
+  let binMarkers     = [];
+  let layerState = { routes: true, vehicles: true, bins: true, heatmap: false };
+  let trackingActive = true;
+  let trackingInterval;
+
+  // ── Init Map ───────────────────────────────────────────────────────────────
+  function initMap() {
+    map = new google.maps.Map(document.getElementById('map-container'), {
+      center: { lat: 13.0827, lng: 80.2707 },
+      zoom: 12,
+      mapTypeId: 'roadmap',
+      styles: [
+        { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+        { featureType: 'transit', stylers: [{ visibility: 'simplified' }] }
+      ],
+      mapTypeControl: true,
+      streetViewControl: false,
+      fullscreenControl: true,
+    });
+
+    drawRoutes();
+    drawVehicles();
+    drawBins();
+    initHeatmap();
+    buildVehiclePanel();
+    startTracking();
+  }
+
+  // ── Routes ────────────────────────────────────────────────────────────────
+  function drawRoutes() {
+    routePolylines.forEach(p => p.setMap(null));
+    routeMarkers.forEach(m => m.setMap(null));
+    routePolylines = []; routeMarkers = [];
+
+    const colors = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
+    ROUTES_DATA.forEach((route, idx) => {
+      const color = colors[idx % colors.length];
+      const path  = route.pickup_points;
+      if (!path.length) return;
+
+      const poly = new google.maps.Polyline({
+        path, strokeColor: color, strokeWeight: 3, strokeOpacity: 0.8, map,
+        icons: [{ icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW }, offset: '50%', repeat: '120px' }]
+      });
+      routePolylines.push(poly);
+
+      path.forEach((pt, pIdx) => {
+        const m = new google.maps.Marker({
+          position: pt, map,
+          title: `${route.area} – Point ${pIdx + 1}`,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 6, fillColor: color, fillOpacity: 0.9,
+            strokeColor: '#fff', strokeWeight: 2,
+          }
+        });
+        const iw = new google.maps.InfoWindow({ content: `<b>${route.area}</b><br>Route: ${route.route_id}<br>Point ${pIdx + 1}` });
+        m.addListener('click', () => iw.open(map, m));
+        routeMarkers.push(m);
+      });
+    });
+  }
+
+  // ── Vehicles ──────────────────────────────────────────────────────────────
+  function drawVehicles() {
+    VEHICLES_DATA.forEach(v => {
+      const pos = { lat: v.current_lat, lng: v.current_lng };
+      const marker = new google.maps.Marker({
+        position: pos, map,
+        title: `${v.vehicle_id} – ${v.driver_name}`,
+        icon: {
+          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="16" fill="#10b981" stroke="white" stroke-width="3"/>
+              <text x="18" y="23" font-size="16" text-anchor="middle" fill="white">🚛</text>
+            </svg>`),
+          scaledSize: new google.maps.Size(40, 40),
+          anchor: new google.maps.Point(20, 20),
+        },
+        animation: google.maps.Animation.DROP,
+        zIndex: 100,
+      });
+      const iw = new google.maps.InfoWindow({
+        content: `<div style="min-width:160px;">
+          <b>${v.vehicle_id}</b><br>
+          Driver: ${v.driver_name}<br>
+          Waste: ${v.waste_type}<br>
+          Capacity: ${v.capacity}<br>
+          <small style="color:#6b7280">Last updated: just now</small>
+        </div>`
+      });
+      marker.addListener('click', () => iw.open(map, marker));
+      vehicleMarkers[v.vehicle_id] = marker;
+    });
+  }
+
+  // ── Bins ──────────────────────────────────────────────────────────────────
+  function drawBins() {
+    binMarkers.forEach(m => m.setMap(null));
+    binMarkers = [];
+    BINS_DATA.forEach(bin => {
+      const fillColor = bin.fill_level >= 80 ? '#ef4444' : bin.fill_level >= 50 ? '#f59e0b' : '#10b981';
+      const m = new google.maps.Marker({
+        position: { lat: bin.lat, lng: bin.lng },
+        map,
+        title: `${bin.bin_id} – ${bin.area}`,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 10 + (bin.fill_level / 20),
+          fillColor, fillOpacity: 0.85,
+          strokeColor: '#fff', strokeWeight: 2,
+        },
+        zIndex: 50,
+      });
+      const iw = new google.maps.InfoWindow({
+        content: `<div style="min-width:160px;">
+          <b>${bin.bin_id}</b> – ${bin.area}<br>
+          Fill: <b style="color:${fillColor}">${bin.fill_level}%</b><br>
+          Type: ${bin.waste_type}<br>
+          Status: <b>${bin.status}</b>
+        </div>`
+      });
+      m.addListener('click', () => iw.open(map, m));
+      binMarkers.push(m);
+    });
+  }
+
+  // ── Heatmap ───────────────────────────────────────────────────────────────
+  function initHeatmap() {
+    // Build heatmap data from bin locations weighted by fill level
+    const heatData = BINS_DATA.map(b => ({
+      location: new google.maps.LatLng(b.lat, b.lng),
+      weight: b.fill_level / 100 * 3,
+    }));
+    // Add route pickup points as lower-weight heatmap points
+    ROUTES_DATA.forEach(r => {
+      r.pickup_points.forEach(pt => {
+        heatData.push({ location: new google.maps.LatLng(pt.lat, pt.lng), weight: 0.5 });
+      });
+    });
+    if (heatData.length === 0) return;
+    heatmapLayer = new google.maps.visualization.HeatmapLayer({
+      data: heatData, radius: 40, opacity: 0.7,
+      gradient: ['rgba(0,0,0,0)','rgba(255,235,0,0.7)','rgba(255,140,0,0.8)','rgba(255,60,0,0.9)','rgba(255,0,0,1)'],
+    });
+  }
+
+  // ── Layer Toggles ─────────────────────────────────────────────────────────
+  function toggleLayer(name) {
+    layerState[name] = !layerState[name];
+    const btn = document.getElementById('toggle' + name.charAt(0).toUpperCase() + name.slice(1));
+    btn.classList.toggle('active', layerState[name]);
+
+    if (name === 'routes') {
+      const tgt = layerState.routes ? map : null;
+      routePolylines.forEach(p => p.setMap(tgt));
+      routeMarkers.forEach(m => m.setMap(tgt));
+    }
+    if (name === 'vehicles') {
+      Object.values(vehicleMarkers).forEach(m => m.setMap(layerState.vehicles ? map : null));
+    }
+    if (name === 'bins') {
+      binMarkers.forEach(m => m.setMap(layerState.bins ? map : null));
+    }
+    if (name === 'heatmap' && heatmapLayer) {
+      heatmapLayer.setMap(layerState.heatmap ? map : null);
+    }
+  }
+
+  // ── Live Tracking ─────────────────────────────────────────────────────────
+  function startTracking() {
+    if (trackingInterval) clearInterval(trackingInterval);
+    trackingInterval = setInterval(fetchVehicleLocations, 5000);
+  }
+
+  function toggleTracking() {
+    trackingActive = !trackingActive;
+    const btn = document.getElementById('trackingToggleBtn');
+    const status = document.getElementById('trackerStatus');
+    if (trackingActive) {
+      startTracking();
+      btn.innerHTML = '<i class="bi bi-pause-fill me-1"></i>Pause';
+      btn.classList.replace('btn-outline-secondary', 'btn-success');
+      status.innerHTML = '<i class="bi bi-broadcast me-1"></i>Live Tracking ON';
+      status.className = 'badge bg-success-subtle text-success';
+    } else {
+      clearInterval(trackingInterval);
+      btn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Resume';
+      btn.classList.replace('btn-success', 'btn-outline-secondary');
+      status.innerHTML = '<i class="bi bi-pause-fill me-1"></i>Tracking Paused';
+      status.className = 'badge bg-warning-subtle text-warning';
+    }
+  }
+
+  function fetchVehicleLocations() {
+    // First simulate movement on the server, then fetch updated positions
+    fetch('/api/vehicles/simulate/', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') } })
+      .then(() => fetch('/api/vehicles/locations/'))
+      .then(r => r.json())
+      .then(data => {
+        data.vehicles.forEach(v => {
+          const marker = vehicleMarkers[v.vehicle_id];
+          if (marker && layerState.vehicles) {
+            animateMarker(marker, new google.maps.LatLng(v.current_lat, v.current_lng));
+          }
+        });
+      })
+      .catch(() => {});
+  }
+
+  function animateMarker(marker, newPos) {
+    const startPos = marker.getPosition();
+    if (!startPos) { marker.setPosition(newPos); return; }
+    const steps = 20;
+    let step = 0;
+    const interval = setInterval(() => {
+      step++;
+      const lat = startPos.lat() + (newPos.lat() - startPos.lat()) * (step / steps);
+      const lng = startPos.lng() + (newPos.lng() - startPos.lng()) * (step / steps);
+      marker.setPosition(new google.maps.LatLng(lat, lng));
+      if (step >= steps) clearInterval(interval);
+    }, 50);
+  }
+
+  // ── Vehicle Info Panel ────────────────────────────────────────────────────
+  function buildVehiclePanel() {
+    const panel = document.getElementById('vehicleInfoPanel');
+    if (!VEHICLES_DATA.length) return;
+    panel.innerHTML = '<div class="col-12"><h6 class="text-muted fw-semibold mb-2"><i class="bi bi-truck me-2"></i>Active Vehicles</h6></div>';
+    VEHICLES_DATA.forEach(v => {
+      const col = document.createElement('div');
+      col.className = 'col-12 col-sm-6 col-lg-4 col-xl-3';
+      col.innerHTML = `
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body py-3">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="fs-4">🚛</span>
+              <div><strong>${v.vehicle_id}</strong><br><small class="text-muted">${v.driver_name}</small></div>
+              <span class="ms-auto badge bg-success-subtle text-success">Active</span>
+            </div>
+            <div class="small text-muted">
+              <i class="bi bi-recycle me-1"></i>${v.waste_type} &nbsp;|&nbsp; <i class="bi bi-box me-1"></i>${v.capacity}
+            </div>
+            <div class="small text-muted mt-1" id="pos-${v.vehicle_id}">
+              <i class="bi bi-geo-alt me-1"></i>${v.current_lat.toFixed(4)}, ${v.current_lng.toFixed(4)}
+            </div>
+          </div>
+        </div>`;
+      panel.appendChild(col);
+    });
+  }
+
+  // ── CSRF helper ───────────────────────────────────────────────────────────
+  function getCookie(name) {
+    let value = `; ${document.cookie}`;
+    let parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '';
+  }
+</script>
+<script async defer
+  src="https://maps.googleapis.com/maps/api/js?key={{ maps_key }}&libraries=visualization&callback=initMap">
+</script>
 {% endblock %}

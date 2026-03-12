@@ -1,104 +1,145 @@
 {% extends 'base.html' %}
 {% block title %}Routes{% endblock %}
 {% block page_title %}Route Management{% endblock %}
-{% block page_meta %}{{ routes|length }} route(s) defined{% endblock %}
-
-{% block extra_head %}
-<!-- Google Maps API — required for the mini pickup-point map in the form -->
-<script>
-  function mapsReady() { if (typeof initMiniMap === 'function') initMiniMap(); }
-</script>
-<script src="https://maps.googleapis.com/maps/api/js?key={{ maps_key }}&callback=mapsReady" async defer></script>
-{% endblock %}
+{% block page_meta %}Manage waste collection routes and pickup points{% endblock %}
 
 {% block content %}
+
 {% if error %}
-<div class="alert alert-error">⚠️ {{ error }}</div>
+<div class="alert alert-danger d-flex align-items-center gap-2 mb-4">
+  <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
+</div>
 {% endif %}
 
-<div class="two-col">
-
-  <!-- Add Route Form -->
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">➕ Add New Route</span>
-    </div>
+<!-- ── Add Route Form ──────────────────────────────────────────────────────── -->
+<div class="card mb-4">
+  <div class="card-header" role="button" data-bs-toggle="collapse" data-bs-target="#addRouteForm">
+    <span class="card-title"><i class="bi bi-plus-circle-fill me-2 text-success"></i>Add New Route</span>
+    <i class="bi bi-chevron-down"></i>
+  </div>
+  <div class="collapse" id="addRouteForm">
     <div class="card-body">
-      <form method="POST" action="{% url 'routes_list' %}">
-        {% csrf_token %}
-        <!-- Hidden input holds the JSON array of pickup points -->
-        <input type="hidden" name="pickup_points" id="pickup-points-json" value="[]">
-
-        <div class="form-group">
-          <label>Route ID</label>
-          <input type="text" name="route_id" placeholder="e.g. R201" required>
+      <div class="row g-4">
+        <div class="col-md-4">
+          <form method="post" action="{% url 'routes_list' %}" id="routeForm">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Route ID *</label>
+              <input type="text" name="route_id" class="form-control" placeholder="e.g. R201" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Area Name *</label>
+              <input type="text" name="area" class="form-control" placeholder="e.g. Adyar" required>
+            </div>
+            <input type="hidden" name="pickup_points" id="pickupPointsInput" value="[]">
+            <div id="pickupList" class="mb-3"></div>
+            <div class="alert alert-info py-2 small"><i class="bi bi-hand-index me-1"></i>Click on the map to add pickup points</div>
+            <button type="submit" class="btn btn-success w-100"><i class="bi bi-plus-lg me-2"></i>Save Route</button>
+          </form>
         </div>
-        <div class="form-group">
-          <label>Area Name</label>
-          <input type="text" name="area" placeholder="e.g. Adyar" required>
+        <div class="col-md-8">
+          <div id="mini-map" style="height: 380px; border-radius: 10px; border: 1px solid #dee2e6;"></div>
         </div>
-
-        <div class="form-group">
-          <label>Pickup Points <span style="color:var(--text-muted);font-weight:400;">(click map to add)</span></label>
-          <div id="mini-map" style="display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 13px;">Map loading... (Requires API Key)</div>
-        </div>
-
-        <div class="pickup-list" id="pickup-list">
-          <p style="color:var(--text-muted);font-size:12px;">Click on the map to add pickup points.</p>
-        </div>
-
-        <button type="submit" class="btn btn-primary" style="margin-top:14px;">🗺️ Add Route</button>
-      </form>
+      </div>
     </div>
   </div>
-
-  <!-- Routes Table -->
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">🗺️ All Routes</span>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Route ID</th>
-            <th>Area</th>
-            <th>Pickup Points</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in routes %}
-          <tr>
-            <td><strong>{{ r.route_id }}</strong></td>
-            <td>{{ r.area }}</td>
-            <td>
-              {% if r.pickup_points %}
-                {% for pt in r.pickup_points %}
-                  <span class="point-tag">{{ pt.lat|floatformat:4 }}, {{ pt.lng|floatformat:4 }}</span>
-                {% endfor %}
-              {% else %}
-                <span style="color:var(--text-muted);font-size:12px;">None</span>
-              {% endif %}
-            </td>
-            <td>
-              <div class="btn-group">
-                <a href="{% url 'route_update' r.route_id %}" class="btn btn-warning btn-sm">✏️ Edit</a>
-                <a href="{% url 'route_delete' r.route_id %}"
-                   class="btn btn-danger btn-sm"
-                   onclick="return confirmDelete('{{ r.route_id }}')">🗑️ Delete</a>
-              </div>
-            </td>
-          </tr>
-          {% empty %}
-          <tr class="empty-row">
-            <td colspan="4">No routes defined yet.</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
 </div>
+
+<!-- ── Routes Table ───────────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span class="card-title"><i class="bi bi-map me-2 text-primary"></i>All Routes <span class="badge bg-secondary ms-2">{{ routes|length }}</span></span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr><th>Route ID</th><th>Area</th><th>Pickup Points</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for r in routes %}
+        <tr>
+          <td><strong>{{ r.route_id }}</strong></td>
+          <td><i class="bi bi-geo-alt me-1 text-muted"></i>{{ r.area }}</td>
+          <td>
+            {% for pt in r.pickup_points %}
+            <span class="badge bg-light text-dark border me-1" style="font-size:11px; font-family:monospace;">
+              {{ pt.lat|floatformat:4 }}, {{ pt.lng|floatformat:4 }}
+            </span>
+            {% empty %}<span class="text-muted small">No points</span>
+            {% endfor %}
+          </td>
+          <td>
+            <div class="d-flex gap-2">
+              <a href="{% url 'route_update' r.route_id %}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-pencil-square"></i> Edit
+              </a>
+              <a href="{% url 'route_delete' r.route_id %}"
+                 onclick="return confirm('Delete route {{ r.route_id }}?')"
+                 class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash3"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center text-muted py-5">No routes yet. Add one using the form above.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  let miniMap, markers = [], points = [];
+
+  function initMiniMap() {
+    miniMap = new google.maps.Map(document.getElementById('mini-map'), {
+      center: { lat: 13.0827, lng: 80.2707 }, zoom: 12,
+      mapTypeControl: false, streetViewControl: false,
+    });
+    miniMap.addListener('click', e => addPoint(e.latLng));
+  }
+
+  function addPoint(latLng) {
+    const idx = markers.length;
+    const marker = new google.maps.Marker({
+      position: latLng, map: miniMap,
+      label: { text: String(idx + 1), color: 'white', fontSize: '12px', fontWeight: 'bold' },
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 12, fillColor: '#6366f1', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
+    });
+    markers.push(marker);
+    points.push({ lat: latLng.lat(), lng: latLng.lng() });
+    document.getElementById('pickupPointsInput').value = JSON.stringify(points);
+    renderPointList();
+  }
+
+  function removePoint(idx) {
+    markers[idx].setMap(null);
+    markers.splice(idx, 1);
+    points.splice(idx, 1);
+    // Re-label remaining markers
+    markers.forEach((m, i) => m.setLabel({ text: String(i + 1), color: 'white', fontSize: '12px', fontWeight: 'bold' }));
+    document.getElementById('pickupPointsInput').value = JSON.stringify(points);
+    renderPointList();
+  }
+
+  function renderPointList() {
+    const list = document.getElementById('pickupList');
+    list.innerHTML = points.length ? '<div class="fw-semibold small text-muted mb-2">Pickup Points:</div>' : '';
+    points.forEach((p, i) => {
+      list.innerHTML += `<div class="d-flex align-items-center justify-content-between bg-light rounded px-2 py-1 mb-1">
+        <small class="font-monospace text-muted">${i+1}. ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</small>
+        <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-2" onclick="removePoint(${i})"><i class="bi bi-x-lg"></i></button>
+      </div>`;
+    });
+  }
+
+  // Only init map when collapse is opened
+  document.getElementById('addRouteForm').addEventListener('show.bs.collapse', () => {
+    if (!miniMap) initMiniMap();
+  });
+</script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ maps_key }}&callback=Function.prototype"></script>
 {% endblock %}

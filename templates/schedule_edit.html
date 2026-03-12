@@ -1,61 +1,72 @@
 {% extends 'base.html' %}
 {% block title %}Edit Schedule{% endblock %}
 {% block page_title %}Edit Schedule{% endblock %}
-{% block page_meta %}{{ schedule.schedule_id }}{% endblock %}
+{% block page_meta %}Update schedule details{% endblock %}
 
 {% block content %}
-{% if error %}<div class="alert alert-error">⚠️ {{ error }}</div>{% endif %}
+<div class="mb-3">
+  <a href="{% url 'schedules_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i> Back to Schedules
+  </a>
+</div>
 
-<div style="max-width:480px;">
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">✏️ Edit Schedule — {{ schedule.schedule_id }}</span>
-    </div>
-    <div class="card-body">
-      <form method="POST">
-        {% csrf_token %}
-        <div class="form-group">
-          <label>Schedule ID</label>
-          <input type="text" value="{{ schedule.schedule_id }}" disabled style="opacity:0.5;">
-        </div>
-        <div class="form-group">
-          <label>Vehicle</label>
-          <select name="vehicle_id" required>
-            {% for v in vehicles %}
-            <option value="{{ v.vehicle_id }}" {% if v.vehicle_id == schedule.vehicle_id %}selected{% endif %}>
-              {{ v.vehicle_id }} – {{ v.driver_name }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Route</label>
-          <select name="route_id" required>
-            {% for r in routes %}
-            <option value="{{ r.route_id }}" {% if r.route_id == schedule.route_id %}selected{% endif %}>
-              {{ r.route_id }} – {{ r.area }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Collection Date</label>
-          <input type="date" name="collection_date" value="{{ schedule.collection_date }}" required>
-        </div>
-        <div class="form-group">
-          <label>Status</label>
-          <select name="status">
-            <option value="Pending"     {% if schedule.status == 'Pending' %}selected{% endif %}>Pending</option>
-            <option value="In Progress" {% if schedule.status == 'In Progress' %}selected{% endif %}>In Progress</option>
-            <option value="Completed"   {% if schedule.status == 'Completed' %}selected{% endif %}>Completed</option>
-            <option value="Cancelled"   {% if schedule.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
-          </select>
-        </div>
-        <div class="btn-group">
-          <button type="submit" class="btn btn-primary">💾 Save Changes</button>
-          <a href="{% url 'schedules_list' %}" class="btn btn-secondary">Cancel</a>
-        </div>
-      </form>
+{% if error %}
+<div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}</div>
+{% endif %}
+
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-7">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="bi bi-pencil-square me-2 text-primary"></i>Edit {{ schedule.schedule_id }}</span>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Schedule ID</label>
+            <input type="text" class="form-control" value="{{ schedule.schedule_id }}" disabled>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Vehicle *</label>
+            <select name="vehicle_id" class="form-select" required>
+              {% for v in vehicles %}
+              <option value="{{ v.vehicle_id }}" {% if schedule.vehicle_id == v.vehicle_id %}selected{% endif %}>
+                {{ v.vehicle_id }} – {{ v.driver_name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Route *</label>
+            <select name="route_id" class="form-select" required>
+              {% for r in routes %}
+              <option value="{{ r.route_id }}" {% if schedule.route_id == r.route_id %}selected{% endif %}>
+                {{ r.route_id }} – {{ r.area }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Date *</label>
+              <input type="date" name="collection_date" class="form-control" value="{{ schedule.collection_date }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Status</label>
+              <select name="status" class="form-select">
+                {% for opt in "Pending,In Progress,Completed,Cancelled"|split:"," %}
+                <option value="{{ opt }}" {% if schedule.status == opt %}selected{% endif %}>{{ opt }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-success"><i class="bi bi-check2 me-2"></i>Save Changes</button>
+            <a href="{% url 'schedules_list' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 </div>

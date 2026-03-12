@@ -46,7 +46,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'waste_collection_project.wsgi.application'
 
 # MongoDB Connection Settings (MongoEngine)
-# Ensure MongoDB is running on localhost:27017
 MONGODB_SETTINGS = {
     'db': 'waste_collection_db',
     'host': 'localhost',
@@ -65,7 +64,11 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# Media Files (for complaint image uploads)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Google Maps API Key - Replace with your actual key
+# Google Maps API Key
 GOOGLE_MAPS_API_KEY = 'AIzaSyDLboNMvYIpzqcpjIK9ybVd3x22SjiogPM'

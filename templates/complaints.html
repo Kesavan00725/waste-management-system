@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% block title %}Citizen Complaints{% endblock %}
+{% block page_title %}Citizen Complaint System{% endblock %}
+{% block page_meta %}Report and track waste-related issues{% endblock %}
+
+{% block extra_head %}
+<style>
+  #complaint-map { height: 280px; border-radius: 10px; border: 1px solid #dee2e6; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if error %}
+<div class="alert alert-danger d-flex align-items-center gap-2 mb-4">
+  <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
+</div>
+{% endif %}
+
+<!-- ── Submit Complaint ────────────────────────────────────────────────────── -->
+<div class="card mb-4">
+  <div class="card-header" role="button" data-bs-toggle="collapse" data-bs-target="#complaintForm">
+    <span class="card-title"><i class="bi bi-megaphone-fill me-2 text-danger"></i>Report an Issue</span>
+    <span class="badge bg-primary-subtle text-primary">Citizen Portal</span>
+  </div>
+  <div class="collapse show" id="complaintForm">
+    <div class="card-body">
+      <form method="post" action="{% url 'complaints_list' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Category *</label>
+            <select name="category" class="form-select" required>
+              {% for cat in categories %}
+              <option value="{{ cat }}">{{ cat }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Your Name</label>
+            <input type="text" name="reporter_name" class="form-control" placeholder="Anonymous">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Description *</label>
+            <textarea name="description" class="form-control" rows="3" placeholder="Describe the issue in detail..." required></textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Address / Landmark</label>
+            <input type="text" name="address" class="form-control" placeholder="Street name or landmark">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Latitude</label>
+            <input type="number" name="lat" id="complaintLat" class="form-control" step="0.000001" value="13.0827">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Longitude</label>
+            <input type="number" name="lng" id="complaintLng" class="form-control" step="0.000001" value="80.2707">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Pick Location on Map <small class="text-muted">(click to set pin)</small></label>
+            <div id="complaint-map"></div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Upload Photo (optional)</label>
+            <input type="file" name="image" class="form-control" accept="image/*">
+            <div class="form-text">Max 5MB. JPG, PNG, WEBP accepted.</div>
+          </div>
+          <div class="col-md-6 align-self-end">
+            <button type="submit" class="btn btn-danger w-100">
+              <i class="bi bi-send-fill me-2"></i>Submit Complaint
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── Complaint Table ────────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span class="card-title"><i class="bi bi-list-ul me-2 text-secondary"></i>All Complaints</span>
+    <div class="d-flex gap-2">
+      <input type="text" id="complaintSearch" class="form-control form-control-sm" placeholder="Search..." style="width:200px;">
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0" id="complaintTable">
+      <thead>
+        <tr>
+          <th>ID</th><th>Category</th><th>Reporter</th><th>Description</th><th>Status</th><th>Date</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in complaints %}
+        <tr>
+          <td><strong>{{ c.complaint_id }}</strong></td>
+          <td>
+            <span class="d-flex align-items-center gap-1">
+              {% if c.category == 'Overflowing Bin' %}<i class="bi bi-trash3-fill text-danger"></i>
+              {% elif c.category == 'Missed Pickup' %}<i class="bi bi-truck text-warning"></i>
+              {% elif c.category == 'Illegal Dumping' %}<i class="bi bi-exclamation-octagon text-danger"></i>
+              {% else %}<i class="bi bi-chat-left-text text-secondary"></i>{% endif %}
+              {{ c.category }}
+            </span>
+          </td>
+          <td>{{ c.reporter_name }}</td>
+          <td class="text-truncate" style="max-width:200px;" title="{{ c.description }}">{{ c.description }}</td>
+          <td>
+            {% if c.status == 'Open' %}<span class="badge bg-danger">{{ c.status }}</span>
+            {% elif c.status == 'Under Review' %}<span class="badge bg-warning text-dark">{{ c.status }}</span>
+            {% elif c.status == 'Resolved' %}<span class="badge bg-success">{{ c.status }}</span>
+            {% else %}<span class="badge bg-secondary">{{ c.status }}</span>{% endif %}
+          </td>
+          <td><small class="text-muted">{{ c.created_at|date:"M d, Y" }}</small></td>
+          <td>
+            <a href="{% url 'complaint_detail' c.complaint_id %}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-eye"></i> View
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-check-circle text-success me-2"></i>No complaints reported yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Search filter
+  document.getElementById('complaintSearch').addEventListener('input', function() {
+    const val = this.value.toLowerCase();
+    document.querySelectorAll('#complaintTable tbody tr').forEach(row => {
+      row.style.display = row.textContent.toLowerCase().includes(val) ? '' : 'none';
+    });
+  });
+</script>
+
+<!-- Google Maps for location picker -->
+<script>
+  function initComplaintMap() {
+    const defaultPos = { lat: 13.0827, lng: 80.2707 };
+    const map = new google.maps.Map(document.getElementById('complaint-map'), {
+      center: defaultPos, zoom: 12,
+      mapTypeId: 'roadmap',
+      styles: [{ featureType: 'poi', stylers: [{ visibility: 'off' }] }]
+    });
+    let marker = new google.maps.Marker({ position: defaultPos, map, draggable: true, title: 'Complaint Location' });
+    function updateInputs(latLng) {
+      document.getElementById('complaintLat').value = latLng.lat().toFixed(6);
+      document.getElementById('complaintLng').value = latLng.lng().toFixed(6);
+    }
+    map.addListener('click', e => { marker.setPosition(e.latLng); updateInputs(e.latLng); });
+    marker.addListener('dragend', e => updateInputs(e.latLng));
+  }
+</script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ maps_key }}&callback=initComplaintMap"></script>
+{% endblock %}

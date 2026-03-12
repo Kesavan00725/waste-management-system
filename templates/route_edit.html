@@ -1,61 +1,106 @@
 {% extends 'base.html' %}
 {% block title %}Edit Route{% endblock %}
 {% block page_title %}Edit Route{% endblock %}
-{% block page_meta %}{{ route.route_id }}{% endblock %}
-
-{% block extra_head %}
-<script>
-  function mapsReady() { if (typeof initMiniMap === 'function') initMiniMap(); }
-</script>
-<script src="https://maps.googleapis.com/maps/api/js?key={{ maps_key }}&callback=mapsReady" async defer></script>
-{% endblock %}
+{% block page_meta %}Update route pickup points{% endblock %}
 
 {% block content %}
+<div class="mb-3">
+  <a href="{% url 'routes_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i> Back to Routes
+  </a>
+</div>
+
 {% if error %}
-<div class="alert alert-error">⚠️ {{ error }}</div>
+<div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}</div>
 {% endif %}
 
-<div style="max-width:600px;">
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">✏️ Edit Route — {{ route.route_id }}</span>
-    </div>
-    <div class="card-body">
-      <form method="POST">
-        {% csrf_token %}
-        <!-- Pre-populate with existing points -->
-        <input type="hidden" name="pickup_points" id="pickup-points-json" value="{{ pickup_points_json }}">
-        <!-- Used by JS to load existing points onto mini map -->
-        <input type="hidden" id="existing-points" value="{{ pickup_points_json }}">
-
-        <div class="form-group">
-          <label>Route ID</label>
-          <input type="text" value="{{ route.route_id }}" disabled style="opacity:0.5;">
-        </div>
-        <div class="form-group">
-          <label>Area Name</label>
-          <input type="text" name="area" value="{{ route.area }}" required>
-        </div>
-        <div class="form-group">
-          <label>Pickup Points <span style="color:var(--text-muted);font-weight:400;">(click map to add/update)</span></label>
-          <div id="mini-map"></div>
-        </div>
-
-        <div class="pickup-list" id="pickup-list"></div>
-
-        <div class="btn-group" style="margin-top:14px;">
-          <button type="submit" class="btn btn-primary">💾 Save Changes</button>
-          <a href="{% url 'routes_list' %}" class="btn btn-secondary">Cancel</a>
-        </div>
-      </form>
+<div class="card">
+  <div class="card-header">
+    <span class="card-title"><i class="bi bi-pencil-square me-2 text-primary"></i>Edit Route {{ route.route_id }}</span>
+  </div>
+  <div class="card-body">
+    <div class="row g-4">
+      <div class="col-md-4">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Route ID</label>
+            <input type="text" class="form-control" value="{{ route.route_id }}" disabled>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Area Name *</label>
+            <input type="text" name="area" class="form-control" value="{{ route.area }}" required>
+          </div>
+          <input type="hidden" name="pickup_points" id="pickupPointsInput" value="{{ pickup_points_json }}">
+          <div id="pickupList" class="mb-3"></div>
+          <div class="alert alert-info py-2 small"><i class="bi bi-hand-index me-1"></i>Click on the map to add/update pickup points</div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success"><i class="bi bi-check2 me-2"></i>Save Route</button>
+            <a href="{% url 'routes_list' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+      <div class="col-md-8">
+        <div id="mini-map" style="height: 420px; border-radius: 10px; border: 1px solid #dee2e6;"></div>
+      </div>
     </div>
   </div>
 </div>
+{% endblock %}
 
+{% block extra_scripts %}
 <script>
-// After map + JS load, sync the existing points into the list UI
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => { if (typeof syncPickupList === 'function') syncPickupList(); }, 500);
-});
+  let miniMap, markers = [], points = {{ pickup_points_json|safe }};
+
+  function initMiniMap() {
+    const center = points.length ? points[0] : { lat: 13.0827, lng: 80.2707 };
+    miniMap = new google.maps.Map(document.getElementById('mini-map'), {
+      center, zoom: 13, mapTypeControl: false, streetViewControl: false,
+    });
+    points.forEach((p, i) => addMarker(p, i));
+    miniMap.addListener('click', e => {
+      const i = markers.length;
+      points.push({ lat: e.latLng.lat(), lng: e.latLng.lng() });
+      addMarker({ lat: e.latLng.lat(), lng: e.latLng.lng() }, i);
+      save();
+    });
+  }
+
+  function addMarker(pt, idx) {
+    const m = new google.maps.Marker({
+      position: pt, map: miniMap,
+      label: { text: String(idx + 1), color: 'white', fontSize: '12px', fontWeight: 'bold' },
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 12, fillColor: '#6366f1', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
+      draggable: true,
+    });
+    m.addListener('dragend', e => {
+      points[idx] = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+      save(); renderList();
+    });
+    markers.push(m);
+    renderList();
+  }
+
+  function removePoint(idx) {
+    markers[idx].setMap(null);
+    markers.splice(idx, 1);
+    points.splice(idx, 1);
+    markers.forEach((m, i) => m.setLabel({ text: String(i+1), color:'white', fontSize:'12px', fontWeight:'bold' }));
+    save(); renderList();
+  }
+
+  function save() { document.getElementById('pickupPointsInput').value = JSON.stringify(points); }
+
+  function renderList() {
+    const list = document.getElementById('pickupList');
+    list.innerHTML = points.length ? '<div class="fw-semibold small text-muted mb-2">Pickup Points:</div>' : '';
+    points.forEach((p, i) => {
+      list.innerHTML += `<div class="d-flex align-items-center justify-content-between bg-light rounded px-2 py-1 mb-1">
+        <small class="font-monospace text-muted">${i+1}. ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</small>
+        <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-2" onclick="removePoint(${i})"><i class="bi bi-x-lg"></i></button>
+      </div>`;
+    });
+  }
 </script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ maps_key }}&callback=initMiniMap"></script>
 {% endblock %}
